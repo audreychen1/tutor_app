@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "362140188529",
+    "project_id": "tutor-app-701da",
+    "storage_bucket": "tutor-app-701da.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:362140188529:android:5bec45aabbeb68278a40d0",
+        "android_client_info": {
+          "package_name": "audrey.com.tutor_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "362140188529-udvsfg0uvd6udnlqvooe5gnfi7lp4496.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzpIhlILWtb91Gyh4_u3HPW2IXfjN8B4w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "362140188529-udvsfg0uvd6udnlqvooe5gnfi7lp4496.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "362140188529-aovfdupldarhh8istjgb7jjkg15rn3ug.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "audrey.com.tutorApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

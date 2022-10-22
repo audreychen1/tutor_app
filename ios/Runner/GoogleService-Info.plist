@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>362140188529-aovfdupldarhh8istjgb7jjkg15rn3ug.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.362140188529-aovfdupldarhh8istjgb7jjkg15rn3ug</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCursnnGk_CgE05s22LHzPGsFaMiJwjNhY</string>
+	<key>GCM_SENDER_ID</key>
+	<string>362140188529</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>audrey.com.tutorApp</string>
+	<key>PROJECT_ID</key>
+	<string>tutor-app-701da</string>
+	<key>STORAGE_BUCKET</key>
+	<string>tutor-app-701da.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:362140188529:ios:1f3357afb2fa50f08a40d0</string>
+</dict>
+</plist>
