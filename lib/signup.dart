@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
 
+import 'ask_question.dart';
+
 class Signup extends StatefulWidget {
   const Signup({Key? key}) : super(key: key);
 
@@ -30,6 +32,10 @@ class _SignupState extends State<Signup> {
         "subjects" : subjects
       }).then((value) {
         print("Set up profile info");
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Dashboard()),
+        );
         //navigate to dashboard
       }).catchError((error) {
         print("Could not set up profile info" + error.toString());

@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:tutor_app/ask_question.dart';
+import 'package:tutor_app/profile.dart';
 import 'package:tutor_app/signup.dart';
 class Login extends StatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -19,6 +21,10 @@ class _LoginState extends State<Login> {
         password: passwordController.text
     ).then((value) {
       print("Logged in user");
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => Profile()),
+      );
       //transition to dashboard
     }).catchError((error) {
       print("Could not sign the user in: " + error.toString());
@@ -49,7 +55,9 @@ class _LoginState extends State<Login> {
             ),
           ),
           ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                login();
+              },
               child: Text("Login"),
           ),
           ElevatedButton(
