@@ -41,6 +41,7 @@ dependencies:
   multiselect:
   bs_flutter_selectbox:
   firebase_database: ^10.0.2
+  intl:
 
 dev_dependencies:
   flutter_test:

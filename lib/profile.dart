@@ -50,17 +50,29 @@ class _ProfileState extends State<Profile> {
 
   }
 
+  Future<void> updateRecord() async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).update({
+      titleController.text: titleController.text,
+    }).
+    then((value) {
+      print("Set up records");
+    }).catchError((onError) {
+      print("Failed to set up records" + onError.toString());
+    });
+  }
+
   Future<void> createQuestion() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
 
-    await FirebaseDatabase.instance.ref().child("Questions").child(getUID()).child(timeStamp.toString()).set(
+    await FirebaseDatabase.instance.ref().child("Questions").child(titleController.text).set(
         {
-          "title": titleController.text,
+          "time": timeStamp,
           "content": contentController.text,
-          "subject": subController.getSelectedAsString(),
+          "author": getUID(),
         }
     ).then((value) {
       print("Successfully uploaded question");
+      updateRecord();
       setState(() {
         titleController.text = "";
         contentController.text = "";
@@ -88,15 +100,12 @@ class _ProfileState extends State<Profile> {
                 ),
                 TextField(
                   controller: contentController,
+                  minLines: 3,
                   maxLines: null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     hintText: "Content",
                   ),
-                ),
-                BsSelectBox(
-                  hintText: "Subject",
-                  controller: subController,
                 ),
               ],
             ),
@@ -188,7 +197,10 @@ class _ProfileState extends State<Profile> {
           onPressed: () {
             showQuestionDialog(context);
           },
-          child: Icon(Icons.question_mark_sharp),
+          child: Icon(
+              Icons.add,
+          ),
+        tooltip: "New Question",
       ),
     );
   }

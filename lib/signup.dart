@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
+import 'package:tutor_app/profile.dart';
 
 import 'ask_question.dart';
 
@@ -34,7 +35,7 @@ class _SignupState extends State<Signup> {
         print("Set up profile info");
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => Dashboard()),
+          MaterialPageRoute(builder: (context) => Profile()),
         );
         //navigate to dashboard
       }).catchError((error) {
