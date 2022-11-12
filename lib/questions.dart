@@ -31,6 +31,7 @@ class _QuestionsState extends State<Questions> {
     await FirebaseDatabase.instance.ref().child("Questions").once().
     then((result) {
       var info = result.snapshot.value as Map;
+      print(info);
       setState(() {
         info.forEach((key, value) {
           Question q;
@@ -41,7 +42,7 @@ class _QuestionsState extends State<Questions> {
         });
       });
     }).catchError((onError) {
-      print(onError);
+      print("can not load questions " + onError.toString());
     });
   }
 

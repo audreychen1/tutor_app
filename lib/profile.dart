@@ -26,6 +26,7 @@ class _ProfileState extends State<Profile> {
   String grade = "";
   List<String> questionSubject = [];
   List<dynamic> subjects = [];
+  List<String> comments = [];
 
   _ProfileState() {
     getProfileInfo();
@@ -69,6 +70,7 @@ class _ProfileState extends State<Profile> {
           "time": timeStamp,
           "content": contentController.text,
           "author": getUID(),
+          "comments": comments,
         }
     ).then((value) {
       print("Successfully uploaded question");
