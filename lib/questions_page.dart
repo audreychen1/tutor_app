@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -17,8 +18,10 @@ class Comment {
   String content;
   String timeStamp;
   String username;
+  int score;
+  bool isCorrect;
 
-  Comment(this.UID, this.content, this.timeStamp, this.username);
+  Comment(this.UID, this.content, this.timeStamp, this.username, this.score, this.isCorrect);
 }
 
 class _QuestionsPageState extends State<QuestionsPage> {
@@ -72,6 +75,13 @@ class _QuestionsPageState extends State<QuestionsPage> {
   }
 
   Future<void> getComments() async {
+    var correctAnswers;
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("correctAnswers").once().
+    then((value) {
+      correctAnswers = value.snapshot.value as Map;
+    }).catchError((error) {
+      print(error.toString());
+    });
     await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").once().
     then((value) {
       var info = value.snapshot.value as Map;
@@ -79,7 +89,18 @@ class _QuestionsPageState extends State<QuestionsPage> {
       info.forEach((timeStamp, value) async {
         String username = await getUsername(value["author"]);
         print(username);
-        Comment c = new Comment(value["author"], value["content"], timeStamp, username);
+        Comment c = new Comment(value["author"], value["content"], timeStamp, username, 0, false);
+        if (correctAnswers != null && correctAnswers.containsKey(c.UID)) {
+         c.isCorrect = true;
+        }
+        if (value.containsKey("voters")) {
+          int commentScore = 0;
+          var score = value["voters"] as Map;
+          score.forEach((key, value) {
+            commentScore += int.parse(value.toString());
+          });
+          c.score = commentScore;
+        }
         setState(() {
           comments.add(c);
         });
@@ -91,6 +112,13 @@ class _QuestionsPageState extends State<QuestionsPage> {
 
   Future<void> addComments() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").update({
+          questionTitle: timeStamp,
+    }).then((value) {
+      print("successfully added answers to user's records");
+    }).catchError((error) {
+      print("could not add answers to user's records " + error.toString());
+    });
     await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()).update({
       "author": getUID(),
       "content": commentsController.text,
@@ -106,12 +134,51 @@ class _QuestionsPageState extends State<QuestionsPage> {
   }
 
   Future<void> voteComment(Comment c, int rating) async {
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(c.timeStamp).child("voters").update({
+    bool alreadyVoted = false;
+    bool differentScore = false;
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(c.timeStamp).child("voters").once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      if (info.containsKey(getUID())) {
+        print(info[getUID()]);
+        if (info[getUID()] == rating) {
+          print("Same rating as before");
+          alreadyVoted = true;
+        }
+        if (info[getUID()] != rating) {
+          print("differnet rating than before");
+          differentScore = true;
+        }
+      }
+    }).catchError((error) {
+      print(error);
+    });
+    if (!alreadyVoted)
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(c.timeStamp).child("voters").set({
       getUID(): rating,
     }).then((value) {
+      setState(() {
+        if (differentScore)
+          c.score += rating * 2;
+        else {
+          c.score += rating;
+        }
+      });
       print("liked comment");
     }).catchError((error) {
       print("could not like comment " + error.toString());
+    });
+  }
+  
+  Future<void> markRightAnswer(Comment c) async {
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("correctAnswers").set({
+      c.UID: c.timeStamp
+    }).then((value) {
+      setState(() {
+        c.isCorrect = true;
+      });
+    }).catchError((onError) {
+      print(onError.toString());
     });
   }
 
@@ -212,28 +279,58 @@ class _QuestionsPageState extends State<QuestionsPage> {
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(time);
     String date = DateFormat('y/M/d   kk:mm').format(dt);
 
-    return ListTile(
-      title: Text(comment.content),
-      subtitle: Row(
+    BoxDecoration normalComment = BoxDecoration(
+      border: Border.all(
+        color: Colors.grey,
+        width: 2,
+      )
+    );
+
+    BoxDecoration correctStyle = BoxDecoration(
+      border: Border.all(
+        color: Colors.green,
+        width: 2,
+      )
+    );
+
+    return Container(
+      decoration: comment.isCorrect? correctStyle : normalComment,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(comment.username),
-          Text("            "),
-          Text(date),
-          if (comment.UID.compareTo(getUID()) != 0)
+          Text(comment.content),
           Row(
             children: [
-              IconButton(
-                onPressed: () {
-                  voteComment(comment, 1);
-                },
-                icon: Icon(Icons.arrow_circle_up),
+              Text(comment.username),
+              Text("     "),
+              Text(date),
+              Text("    "),
+              Text(comment.score.toString()),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0)
+                        voteComment(comment, 1);
+                    },
+                    icon: Icon(Icons.arrow_circle_up),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0)
+                       voteComment(comment, -1);
+                    },
+                    icon: Icon(Icons.arrow_circle_down),
+                  ),
+                ],
               ),
-              IconButton(
-                onPressed: () {
-                  voteComment(comment, -1);
-                },
-                icon: Icon(Icons.arrow_circle_down),
-              ),
+              if (question.author.compareTo(getUID()) == 0)
+                IconButton(
+                  onPressed: () {
+                    markRightAnswer(comment);
+                  },
+                  icon: Icon(Icons.check),
+                ),
             ],
           ),
         ],

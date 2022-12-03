@@ -5,6 +5,7 @@ import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/history.dart';
 import 'package:tutor_app/questions.dart';
+import 'package:tutor_app/settings.dart';
 
 class Profile extends StatefulWidget {
   const Profile({Key? key}) : super(key: key);
@@ -27,9 +28,11 @@ class _ProfileState extends State<Profile> {
   List<String> questionSubject = [];
   List<dynamic> subjects = [];
   List<String> comments = [];
+  int userScore = 0;
 
   _ProfileState() {
     getProfileInfo();
+    getComments();
   }
 
   Future<void> getProfileInfo() async {
@@ -51,8 +54,41 @@ class _ProfileState extends State<Profile> {
 
   }
 
+  Future<void> getComments() async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once().
+    then((value) {
+      print("Grabbed comment records");
+      var info = value.snapshot.value as Map;
+      info.forEach((questionTitle, timeStamp) async {
+        //look up question
+        await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()).once().
+        then((value) {
+          var info = value.snapshot.value as Map;
+          if (info["voters"] != null) {
+            int commentScore = 0;
+            var score = info["voters"] as Map;
+            score.forEach((key, value) {
+              commentScore += int.parse(value.toString());
+              print(value.toString());
+            });
+            setState(() {
+              print(commentScore);
+              userScore += commentScore;
+            });
+          }
+        }).catchError((error) {
+          print("could not look up comment" + error.toString());
+        });
+        //look up timestamp comment
+        //access to comment's contents
+      });
+    }).catchError((error) {
+      print("could not get comments" + error.toString());
+    });
+  }
+
   Future<void> updateRecord() async {
-    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).update({
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
       titleController.text: titleController.text,
     }).
     then((value) {
@@ -164,6 +200,12 @@ class _ProfileState extends State<Profile> {
                           fontSize: 30,
                         ),
                       ),
+                      Text(
+                        "Score: " + userScore.toString(),
+                        style: TextStyle(
+                          fontSize: 30,
+                        ),
+                      ),
                     ],
                   )
                 ],
@@ -187,6 +229,7 @@ class _ProfileState extends State<Profile> {
                   );
                 }
             ),
+
           ),
           Expanded(
             flex: 50,
@@ -223,6 +266,10 @@ class _ProfileState extends State<Profile> {
               label: 'Questions'
           ),
           NavigationDestination(
+              icon: Icon(Icons.settings),
+              label: 'Settings'
+          ),
+          NavigationDestination(
               icon: Icon(Icons.account_circle_outlined),
               label: 'Profile'
           ),
@@ -234,6 +281,7 @@ class _ProfileState extends State<Profile> {
       ),
       body: <Widget> [
         Questions(),
+        Settings(),
         profileUI(),
         History(),
       ] [currentPageIndex],
