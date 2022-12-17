@@ -1,11 +1,17 @@
+import 'dart:io';
 import 'package:bs_flutter_selectbox/bs_flutter_selectbox.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_profile_picture/flutter_profile_picture.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/history.dart';
 import 'package:tutor_app/questions.dart';
 import 'package:tutor_app/settings.dart';
+import 'package:uuid/uuid.dart';
 
 class Profile extends StatefulWidget {
   const Profile({Key? key}) : super(key: key);
@@ -29,17 +35,19 @@ class _ProfileState extends State<Profile> {
   List<dynamic> subjects = [];
   List<String> comments = [];
   int userScore = 0;
-
+  var questionUUID = new Uuid();
+  var img;
+  
   _ProfileState() {
     getProfileInfo();
     getComments();
   }
 
   Future<void> getProfileInfo() async {
-
+    var info;
     await FirebaseDatabase.instance.ref().child("User").child(getUID()).once().
     then((value) {
-      var info = value.snapshot.value as Map;
+      info = value.snapshot.value as Map;
       print(info);
 
       setState(() {
@@ -51,6 +59,25 @@ class _ProfileState extends State<Profile> {
     catchError((error) {
       print("Could not grab profile info: " + error.toString());
     });
+    try {
+      setState(() {
+        img = ProfilePicture(
+          name: 'NAME',
+          radius: 31,
+          fontsize: 21,
+          img: info["profilepic"],
+        );
+      });
+    } catch (error) {
+      setState(() {
+        img = ProfilePicture(
+          name: 'NAME',
+          radius: 31,
+          fontsize: 21,
+          img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+        );
+      });
+    }
 
   }
 
@@ -87,30 +114,29 @@ class _ProfileState extends State<Profile> {
     });
   }
 
-  Future<void> updateRecord() async {
-    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
-      titleController.text: titleController.text,
-    }).
-    then((value) {
-      print("Set up records");
-    }).catchError((onError) {
-      print("Failed to set up records" + onError.toString());
-    });
-  }
-
   Future<void> createQuestion() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
-
-    await FirebaseDatabase.instance.ref().child("Questions").child(titleController.text).set(
+    String uuid = questionUUID.v4();
+    await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).set(
         {
           "time": timeStamp,
           "content": contentController.text,
           "author": getUID(),
           "comments": comments,
+          "title": titleController.text,
+          "uuid": uuid,
         }
-    ).then((value) {
+    ).then((value) async {
       print("Successfully uploaded question");
-      updateRecord();
+      await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
+        "uuid": uuid,
+      }).
+      then((value) {
+        print("Set up records");
+      }).catchError((onError) {
+        print("Failed to set up records" + onError.toString());
+      });
+
       setState(() {
         titleController.text = "";
         contentController.text = "";
@@ -170,6 +196,8 @@ class _ProfileState extends State<Profile> {
   }
 
   Scaffold profileUI() {
+    getProfileInfo();
+
     return Scaffold(
       body: Column(
         children: [
@@ -182,7 +210,7 @@ class _ProfileState extends State<Profile> {
                     child: Container(
                         height: MediaQuery.of(context).size.width * 0.5,
                         width: MediaQuery.of(context).size.width * 0.5,
-                        color: Colors.black12
+                        child: img,
                     ),
                   ),
                   Column(

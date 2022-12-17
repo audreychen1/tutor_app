@@ -17,8 +17,9 @@ class Question {
   String title;
   String content;
   String author;
+  String uuid;
 
-  Question(this.time, this.title, this.content, this.author);
+  Question(this.time, this.title, this.content, this.author, this.uuid);
 }
 
 class _QuestionsState extends State<Questions> {
@@ -39,7 +40,7 @@ class _QuestionsState extends State<Questions> {
       setState(() {
         info.forEach((key, value) {
           Question q;
-          q = Question(value["time"].toString(), key, value["content"], value["author"]);
+          q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"]);
           if (value["author"].toString().compareTo(getUID()) != 0) {
             if (filter.isEmpty) {
               questions.add(q);
@@ -49,8 +50,6 @@ class _QuestionsState extends State<Questions> {
           }
         });
       });
-    }).catchError((onError) {
-      print("can not load questions " + onError.toString());
     });
   }
 

@@ -28,21 +28,22 @@ class _HistoryState extends State<History> {
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").once().
     then((value) {
       var info = value.snapshot.value as Map;
-      info.forEach((key, value) async {
-        await lookUpQuestion(key);
+      info.forEach((key, uuid) async {
+        await lookUpQuestion(getUID()+"+"+uuid);
       });
     }).catchError((onError) {
       print("couldn't get questions" + onError.toString());
     });
   }
 
+  //get the questions that the user made
   Future<void> lookUpQuestion(String title) async {
     await FirebaseDatabase.instance.ref().child("Questions").child(title).once().
     then((value) {
       var info = value.snapshot.value as Map;
       print(info);
       setState(() {
-        Question q = Question(info["time"].toString(), title, info["content"], info["author"]);
+        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"]);
         questions.add(q);
       });
     }).catchError((onError) {
@@ -50,17 +51,18 @@ class _HistoryState extends State<History> {
     });
   }
 
+  //get questions the user answered
   Future<void> lookUpQuestion2(String title) async {
     await FirebaseDatabase.instance.ref().child("Questions").child(title).once().
     then((value) {
       var info = value.snapshot.value as Map;
       print(info);
       setState(() {
-        Question q = Question(info["time"].toString(), title, info["content"], info["author"]);
+        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"]);
         answeredQuestions.add(q);
       });
     }).catchError((onError) {
-      print("couldn't look up question" + onError.toString());
+      print("couldn't look up question 1 " + onError.toString());
     });
   }
 
@@ -69,6 +71,10 @@ class _HistoryState extends State<History> {
     then((value) {
       var info = value.snapshot.value as Map;
       info.forEach((key, value){
+        print("key");
+        print(key);
+        print("value");
+        print(value);
         lookUpQuestion2(key);
       });
     }).catchError((error) {

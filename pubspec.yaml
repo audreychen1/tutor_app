@@ -43,6 +43,11 @@ dependencies:
   firebase_database: ^10.0.2
   intl:
   outline_search_bar:
+  uuid:
+  firebase_storage:
+  path_provider:
+  image_picker:
+  flutter_profile_picture:
 
 dev_dependencies:
   flutter_test:

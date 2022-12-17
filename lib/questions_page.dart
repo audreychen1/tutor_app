@@ -1,8 +1,8 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tutor_app/helper.dart';
+import 'package:tutor_app/public_profile_page.dart';
 import 'package:tutor_app/questions.dart';
 
 class QuestionsPage extends StatefulWidget {
@@ -76,20 +76,20 @@ class _QuestionsPageState extends State<QuestionsPage> {
 
   Future<void> getComments() async {
     var correctAnswers;
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("correctAnswers").once().
+    await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + question.uuid).child("correctAnswers").once().
     then((value) {
       correctAnswers = value.snapshot.value as Map;
     }).catchError((error) {
       print(error.toString());
     });
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").once().
+    await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + question.uuid).child("comments").once().
     then((value) {
       var info = value.snapshot.value as Map;
       comments.clear();
-      info.forEach((timeStamp, value) async {
+      info.forEach((commentName, value) async {
         String username = await getUsername(value["author"]);
         print(username);
-        Comment c = new Comment(value["author"], value["content"], timeStamp, username, 0, false);
+        Comment c = new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false);
         if (correctAnswers != null && correctAnswers.containsKey(c.UID)) {
          c.isCorrect = true;
         }
@@ -113,14 +113,15 @@ class _QuestionsPageState extends State<QuestionsPage> {
   Future<void> addComments() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").update({
-          questionTitle: timeStamp,
+          authorUID + "+" + question.uuid: timeStamp,
     }).then((value) {
       print("successfully added answers to user's records");
     }).catchError((error) {
       print("could not add answers to user's records " + error.toString());
     });
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()).update({
+    await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + question.uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
       "author": getUID(),
+      "timestamp": timeStamp,
       "content": commentsController.text,
     }).
     then((value) async {
@@ -275,6 +276,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
   //widget for comments
   Widget _buildRow(int index){
     Comment comment = comments[index];
+    print(comment.timeStamp);
     int time = int.parse(comment.timeStamp);
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(time);
     String date = DateFormat('y/M/d   kk:mm').format(dt);
@@ -321,6 +323,17 @@ class _QuestionsPageState extends State<QuestionsPage> {
                        voteComment(comment, -1);
                     },
                     icon: Icon(Icons.arrow_circle_down),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      print(comment.UID.toString());
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.person),
                   ),
                 ],
               ),
