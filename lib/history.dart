@@ -13,15 +13,13 @@ class History extends StatefulWidget {
   State<History> createState() => _HistoryState();
 }
 
-class _HistoryState extends State<History> {
+class _HistoryState extends State<History> with TickerProviderStateMixin{
   List<Question> questions = [];
   List<Question> answeredQuestions = [];
-  bool showQuestions = true;
-  bool showAnswers = true;
 
   _HistoryState() {
-    getQuestions();
     getComments();
+    getQuestions();
   }
 
   Future<void> getQuestions() async {
@@ -112,91 +110,176 @@ class _HistoryState extends State<History> {
 
   @override
   Widget build(BuildContext context) {
-    void showQuestion() {
-      setState(() {
-        showQuestions = !showQuestions;
-      });
-    }
-    void showAnswer() {
-      setState(() {
-        showAnswers = !showAnswers;
-      });
-    }
+    late TabController _tabController = new TabController(length: 2, vsync: this);
+    // @override
+    // void initState() {
+    //   super.initState();
+    //   // _tabController = TabController(vsync: this, length: 2);
+    // }
 
+    // @override
+    // void dispose() {
+    //   _tabController.dispose();
+    //   super.dispose();
+    // }
+    // return Scaffold(
+    //   appBar: AppBar(
+    //     title: Text("History"),
+    //   ),
+    //   body: Column(
+    //     children: [
+    //       Expanded(
+    //         flex: 5,
+    //           child: ElevatedButton(
+    //             onPressed: () {
+    //               showQuestion();
+    //             },
+    //             child: Text("Questions"),
+    //           )
+    //       ),
+    //       Expanded(
+    //         flex: 45,
+    //         child: Column(
+    //           mainAxisSize: MainAxisSize.min,
+    //           children: [
+    //             Visibility(
+    //               visible: showQuestions,
+    //               child: ListView.builder(
+    //                   shrinkWrap: true,
+    //                   padding: const EdgeInsets.all(8),
+    //                   itemCount: questions.length,
+    //                   itemBuilder: (BuildContext context, int index) {
+    //                     return Column(
+    //                       children: [
+    //                         _buildRow(index, questions),
+    //                         Divider(),
+    //                       ],
+    //                     );
+    //                   }
+    //               ),
+    //             ),
+    //           ],
+    //         ),
+    //       ),
+    //       Expanded(
+    //           flex: 5,
+    //           child: ElevatedButton(
+    //             onPressed: () {
+    //               showAnswer();
+    //             },
+    //             child: Text("Answers"),
+    //           )
+    //       ),
+    //       Expanded(
+    //         flex: 45,
+    //           child:Column(
+    //             mainAxisSize: MainAxisSize.min,
+    //             children: [
+    //               Visibility(
+    //                 visible: showAnswers,
+    //                 child: ListView.builder(
+    //                   shrinkWrap: true,
+    //                   padding: const EdgeInsets.all(8),
+    //                   itemCount: answeredQuestions.length,
+    //                     itemBuilder: (BuildContext context, int index) {
+    //                       return Column(
+    //                         children: [
+    //                           _buildRow(index, answeredQuestions),
+    //                           Divider(),
+    //                         ],
+    //                       );
+    //                     }
+    //                 ),
+    //               ),
+    //             ],
+    //           ),
+    //       )
+    //     ],
+    //   )
+    // );
     return Scaffold(
       appBar: AppBar(
-        title: Text("History"),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            flex: 5,
-              child: ElevatedButton(
-                onPressed: () {
-                  showQuestion();
-                },
-                child: Text("Questions"),
-              )
+        title: Text(
+            "History",
+          style: TextStyle(
+            fontSize: 25,
           ),
-          Expanded(
-            flex: 45,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Visibility(
-                  visible: showQuestions,
-                  child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.all(8),
-                      itemCount: questions.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        return Column(
-                          children: [
-                            _buildRow(index, questions),
-                            Divider(),
-                          ],
-                        );
-                      }
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const <Widget> [
+            Tab(
+              child: Text(
+                  "Questions",
+                style: TextStyle(
+                  fontSize: 20,
+                ),
+              ),
+            ),
+            Tab(
+              child: Text(
+                "Answers",
+                style: TextStyle(
+                  fontSize: 20,
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          if (questions.length == 0)
+            Center(
+                child: Text(
+                  "No Questions Asked",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontFamily: "Times New Roman",
                   ),
                 ),
-              ],
             ),
+          if (questions.length != 0)
+          ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(8),
+              itemCount: questions.length,
+              itemBuilder: (BuildContext context, int index) {
+                return Column(
+                  children: [
+                    _buildRow(index, questions),
+                    Divider(),
+                  ],
+                );
+              }
           ),
-          Expanded(
-              flex: 5,
-              child: ElevatedButton(
-                onPressed: () {
-                  showAnswer();
-                },
-                child: Text("Answers"),
-              )
-          ),
-          Expanded(
-            flex: 45,
-              child:Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Visibility(
-                    visible: showAnswers,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.all(8),
-                      itemCount: answeredQuestions.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          return Column(
-                            children: [
-                              _buildRow(index, answeredQuestions),
-                              Divider(),
-                            ],
-                          );
-                        }
-                    ),
-                  ),
-                ],
+          if (answeredQuestions.length == 0)
+            Center(
+              child: Text(
+                "No Questions Answered",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontFamily: "Times New Roman",
+                ),
               ),
-          )
+            ),
+          if (answeredQuestions.length != 0)
+          ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(8),
+              itemCount: answeredQuestions.length,
+              itemBuilder: (BuildContext context, int index) {
+                return Column(
+                  children: [
+                    _buildRow(index, answeredQuestions),
+                    Divider(),
+                  ],
+                );
+              }
+              ),
         ],
-      )
+      ),
     );
   }
 

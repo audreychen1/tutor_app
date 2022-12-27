@@ -75,6 +75,21 @@ class _QuestionsState extends State<Questions> {
               });
             },
           ),
+          if (questions.length == 0)
+            Center(
+              child: Container(
+                child: Text(
+                  "No Questions",
+                  style: TextStyle(
+                    fontFamily: "Times New Roman",
+                    fontSize: 25,
+                  ),
+                ),
+                margin: EdgeInsets.all(100.0),
+                padding: EdgeInsets.all(5.0),
+              ),
+            ),
+          if (questions.length != 0)
           ListView.builder(
             shrinkWrap: true,
               padding: const EdgeInsets.all(8),

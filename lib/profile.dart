@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:bs_flutter_selectbox/bs_flutter_selectbox.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -11,7 +12,10 @@ import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/history.dart';
 import 'package:tutor_app/questions.dart';
 import 'package:tutor_app/settings.dart';
+import 'package:tutor_app/support_page.dart';
 import 'package:uuid/uuid.dart';
+
+import 'login.dart';
 
 class Profile extends StatefulWidget {
   const Profile({Key? key}) : super(key: key);
@@ -48,6 +52,7 @@ class _ProfileState extends State<Profile> {
     await FirebaseDatabase.instance.ref().child("User").child(getUID()).once().
     then((value) {
       info = value.snapshot.value as Map;
+      print("information:");
       print(info);
 
       setState(() {
@@ -129,7 +134,7 @@ class _ProfileState extends State<Profile> {
     ).then((value) async {
       print("Successfully uploaded question");
       await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
-        "uuid": uuid,
+        uuid: uuid,
       }).
       then((value) {
         print("Set up records");
@@ -195,10 +200,36 @@ class _ProfileState extends State<Profile> {
         );
   }
 
+  Future<void> uploadProfilePic() async {
+    final storageRef = FirebaseStorage.instance.ref();
+    final profileRef = storageRef.child("profilePics/" + getUID() + ".png");
+    final ImagePicker picker = ImagePicker();
+    XFile? xFile = await picker.pickImage(
+        source: ImageSource.gallery
+    );
+    File file = File(xFile!.path);
+    try {
+      await profileRef.putFile(file);
+      await FirebaseDatabase.instance.ref().child("User").child(getUID()).update({
+        "profilepic":await profileRef.getDownloadURL(),
+      }).then((value) {
+        print("uploaded profile pic");
+      }).catchError((onError) {
+        print("could not upload profile pic");
+      });
+    } catch (e) {
+      print("couldn't upload pciutre" + e.toString());
+    }
+  }
+
   Scaffold profileUI() {
-    getProfileInfo();
+    //getProfileInfo();
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text("Profile Page"),
+        leading: Icon(Icons.settings),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -275,6 +306,44 @@ class _ProfileState extends State<Profile> {
           ),
         tooltip: "New Question",
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.all(8),
+          children: [
+            DrawerHeader(
+                child: Text("Settings"),
+            ),
+            ListTile(
+              title: Text("Logout"),
+              onTap: () async{
+                await FirebaseAuth.instance.signOut().then((value) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => Login(),
+                    ),
+                  );
+                });
+              },
+            ),
+            ListTile(
+              title: Text("Upload Profile Picture"),
+              onTap: () async {
+                await uploadProfilePic();
+              },
+            ),
+            ListTile(
+              title: Text("Help"),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => SupportPage(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -293,10 +362,10 @@ class _ProfileState extends State<Profile> {
               icon: Icon(Icons.question_mark),
               label: 'Questions'
           ),
-          NavigationDestination(
-              icon: Icon(Icons.settings),
-              label: 'Settings'
-          ),
+          // NavigationDestination(
+          //     icon: Icon(Icons.settings),
+          //     label: 'Settings'
+          // ),
           NavigationDestination(
               icon: Icon(Icons.account_circle_outlined),
               label: 'Profile'
@@ -309,7 +378,7 @@ class _ProfileState extends State<Profile> {
       ),
       body: <Widget> [
         Questions(),
-        Settings(),
+        // Settings(),
         profileUI(),
         History(),
       ] [currentPageIndex],

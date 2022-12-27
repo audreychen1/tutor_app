@@ -25,7 +25,6 @@ class _SettingsState extends State<Settings> {
     File file = File(xFile!.path);
     try {
       await profileRef.putFile(file);
-      //await mountainsRef.getDownloadURL();
       await FirebaseDatabase.instance.ref().child("User").child(getUID()).update({
         "profilepic":await profileRef.getDownloadURL(),
       }).then((value) {
