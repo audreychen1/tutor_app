@@ -25,7 +25,6 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-
   BsSelectBoxController subController = new BsSelectBoxController(options: [
     BsSelectBoxOption(value: "Science", text: Text("Science")),
     BsSelectBoxOption(value: "Math", text: Text("Math")),
@@ -41,6 +40,11 @@ class _ProfileState extends State<Profile> {
   int userScore = 0;
   var questionUUID = new Uuid();
   var img;
+  bool uploadQuestionPicture = false;
+  bool takeQuestionPicture = false;
+  var uploadedPicProfileRef;
+  var uploadedPicFile;
+  var questionPicTime;
   
   _ProfileState() {
     getProfileInfo();
@@ -50,7 +54,7 @@ class _ProfileState extends State<Profile> {
   Future<void> getProfileInfo() async {
     var info;
     await FirebaseDatabase.instance.ref().child("User").child(getUID()).once().
-    then((value) {
+    then((value) async {
       info = value.snapshot.value as Map;
       print("information:");
       print(info);
@@ -83,7 +87,6 @@ class _ProfileState extends State<Profile> {
         );
       });
     }
-
   }
 
   Future<void> getComments() async {
@@ -149,6 +152,22 @@ class _ProfileState extends State<Profile> {
     }).catchError((onError){
       print("Could not upload question" + onError.toString());
     });
+    //upload picture into firebase
+    if (uploadQuestionPicture || takeQuestionPicture) {
+      try {
+        await uploadedPicProfileRef.putFile(uploadedPicFile);
+        await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).update({
+          "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
+          "uploadedpictime" : questionPicTime,
+        }).then((value) {
+          print("uploaded question pic ");
+        }).catchError((error) {
+          print("not able to upload question pic " + error.toString());
+        });
+      } catch (e) {
+        print("could not upoload question pic " + e.toString());
+      }
+    }
   }
 
   void showQuestionDialog(BuildContext context) {
@@ -157,26 +176,30 @@ class _ProfileState extends State<Profile> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text("New Question"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Title",
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: "Title",
+                    ),
                   ),
-                ),
-                TextField(
-                  controller: contentController,
-                  minLines: 3,
-                  maxLines: null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Content",
+                  TextField(
+                    controller: contentController,
+                    minLines: 3,
+                    maxLines: null,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: "Content",
+                    ),
                   ),
-                ),
-              ],
+                  if (uploadQuestionPicture || takeQuestionPicture)
+                    Text(uploadedPicFile.path),
+                ],
+              ),
             ),
             actions: [
               ElevatedButton(
@@ -187,6 +210,20 @@ class _ProfileState extends State<Profile> {
                       });
                   },
                   child: Text("Upload"),
+              ),
+              FloatingActionButton(
+                onPressed: () {
+                  takeQuestionPic();
+                },
+                child: Icon(Icons.camera_alt_outlined),
+                tooltip: "Take Picture",
+              ),
+              FloatingActionButton(
+                onPressed: () {
+                  uploadQuestionPic();
+                },
+                child: Icon(Icons.photo),
+                tooltip: "Upload Picture",
               ),
               ElevatedButton(
                 onPressed: () {
@@ -221,6 +258,40 @@ class _ProfileState extends State<Profile> {
       print("couldn't upload pciutre" + e.toString());
     }
   }
+  
+  Future<void> uploadQuestionPic() async {
+    int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    questionPicTime = timeStamp;
+    final storageRef = FirebaseStorage.instance.ref();
+    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final ImagePicker questionImagePicker = ImagePicker();
+    XFile? xFile = await questionImagePicker.pickImage(
+        source: ImageSource.gallery,
+    );
+    File f = File(xFile!.path);
+    uploadedPicProfileRef = profileRef;
+    uploadedPicFile = f;
+    if (uploadedPicFile != null) {
+      uploadQuestionPicture = true;
+    }
+  }
+
+  Future<void> takeQuestionPic() async {
+    int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    questionPicTime = timeStamp;
+    final storageRef = FirebaseStorage.instance.ref();
+    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final ImagePicker questionImagePicker = ImagePicker();
+    XFile? xFile = await questionImagePicker.pickImage(
+      source: ImageSource.camera,
+    );
+    File f = File(xFile!.path);
+    uploadedPicProfileRef = profileRef;
+    uploadedPicFile = f;
+    if (uploadedPicFile != null) {
+      takeQuestionPicture = true;
+    }
+  }
 
   Scaffold profileUI() {
     //getProfileInfo();
@@ -228,7 +299,7 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Profile Page"),
-        leading: Icon(Icons.settings),
+        //leading: Icon(Icons.settings),
       ),
       body: Column(
         children: [
