@@ -33,9 +33,7 @@ class _QuestionsState extends State<Questions> {
   var questionProfilePics = new Map();
 
   _QuestionsState() {
-    getQuestions();
-        //.then((value) => getQuestionProfilePics());
-    //getQuestionProfilePics();
+    getQuestions().then((value) => getQuestionProfilePics());
   }
 
   Future<void> getQuestions() async {
@@ -43,9 +41,8 @@ class _QuestionsState extends State<Questions> {
     await FirebaseDatabase.instance.ref().child("Questions").once().
     then((result) {
       var info = result.snapshot.value as Map;
-      print(info);
       setState(() {
-        info.forEach((key, value) {
+        info.forEach((key, value) async {
           Question q;
           q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"]);
           if (value["author"].toString().compareTo(getUID()) != 0) {
@@ -55,8 +52,21 @@ class _QuestionsState extends State<Questions> {
               questions.add(q);
             }
           }
+        });
+      });
+    }).catchError((error) {
+      print("could not get question info " + error.toString());
+    });
+  }
+  
+  Future<void> getQuestionProfilePics() async {
+    await FirebaseDatabase.instance.ref().child("Questions").once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      setState(() {
+        info.forEach((key, value) async {
           final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + value["author"] + ".png");
-          try {
+          await profileRef.getDownloadURL().then((value2) {
             setState(() async {
               questionProfilePics[value["author"]] = ProfilePicture(
                 name: 'NAME',
@@ -65,7 +75,7 @@ class _QuestionsState extends State<Questions> {
                 img: await profileRef.getDownloadURL(),
               );
             });
-          } catch (error) {
+          }).catchError((error) {
             setState(() {
               questionProfilePics[value["author"]] = ProfilePicture(
                 name: 'NAME',
@@ -74,44 +84,13 @@ class _QuestionsState extends State<Questions> {
                 img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
               );
             });
-          }
+          });
         });
       });
+    }).catchError((error) {
+      print("could not get question profile pics " + error.toString());
     });
   }
-  
-  // Future<void> getQuestionProfilePics() async {
-  //   await FirebaseDatabase.instance.ref().child("User").once().
-  //   then((value) {
-  //     var info = value.snapshot.value as Map;
-  //     info.forEach((key, value) {
-  //       final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + key + ".png");
-  //       try {
-  //         setState(() async {
-  //           questionProfilePics[key] = ProfilePicture(
-  //             name: 'NAME',
-  //             radius: 20,
-  //             fontsize: 20,
-  //             img: await profileRef.getDownloadURL(),
-  //           );
-  //           print("HaLLOOOO");
-  //           print(questionProfilePics);
-  //         });
-  //       } catch (error) {
-  //         setState(() {
-  //           questionProfilePics[key] = ProfilePicture(
-  //             name: 'NAME',
-  //             radius: 20,
-  //             fontsize: 20,
-  //             img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-  //           );
-  //         });
-  //       }
-  //     });
-  //   }).catchError((error) {
-  //     print("could not get profile pictures " + error);
-  //   });
-  // }
 
   @override
   Widget build(BuildContext context) {

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/profile.dart';
@@ -35,18 +38,28 @@ class _QuestionsPageState extends State<QuestionsPage> {
   late String questionTitle = widget.q.title;
   String name = "";
   TextEditingController commentsController = new TextEditingController();
+  //TextEditingController replyController = new TextEditingController();
   List<Comment> comments = [];
+  List<Comment> replies = [];
   ScrollController controller = new ScrollController();
-  var profilePicImagesComments = new Map();
+  var profilePicImages = new Map();
   var questionAuthorProfilePic;
   var questionUUID = new Uuid();
   var questionPic;
+  bool replyButtonClicked = false;
+  String repliedComment = "";
+  //
+  var uploadedPicFile;
+  var questionPicTime;
+  bool uploadQuestionPicture = false;
+  bool takeQuestionPicture = false;
+  var uploadedPicProfileRef;
 
   _QuestionsPageState() {
-    getAuthorName().then((value) => getQuestionPic().then((value) => getComments()));
+    getAuthorInfo().then((value) => getQuestionPic().then((value) => getComments()));
   }
 
-  Future<void> getAuthorName() async {
+  Future<void> getAuthorInfo() async {
     await FirebaseDatabase.instance.ref().child("User").once().
     then((data) {
       var info = data.snapshot.value as Map;
@@ -77,9 +90,32 @@ class _QuestionsPageState extends State<QuestionsPage> {
               });
             });
           }
+          final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + key + ".png");
+          if (!profilePicImages.containsValue(key)) {
+            String authorName = key;
+            await profileRef.getDownloadURL().then((value) {
+              setState(() {
+                profilePicImages[authorName] = ProfilePicture(
+                  name: 'NAME',
+                  radius: 20,
+                  fontsize: 20,
+                  img: value,
+                );
+              });
+            }).catchError((error) {
+              setState(() {
+                profilePicImages[authorName] = const ProfilePicture(
+                  name: 'NAME',
+                  radius: 20,
+                  fontsize: 20,
+                  img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+                );
+              });
+            });
+          }
         });
       });
-      print(info);
+      print("got author info ");
     }).catchError((onError) {
       print("was not able to get name " + onError.toString());
     });
@@ -93,12 +129,10 @@ class _QuestionsPageState extends State<QuestionsPage> {
       setState(() {
         info.forEach((key, value) {
           if (key.toString().compareTo(UID) == 0) {
-            print(value["name"]);
             result = value["name"];
           }
         });
       });
-      print(info);
     }).catchError((onError) {
       print("was not able to get name " + onError.toString());
     });
@@ -140,7 +174,6 @@ class _QuestionsPageState extends State<QuestionsPage> {
       comments.clear();
       info.forEach((commentName, value) async {
         String username = await getUsername(value["author"]);
-        print(username);
         Comment c = new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false, []);
         if (correctAnswers != null && correctAnswers.containsKey(c.UID)) {
          c.isCorrect = true;
@@ -161,30 +194,6 @@ class _QuestionsPageState extends State<QuestionsPage> {
         }
         setState(() async {
           comments.add(c);
-          //answer profile pics
-          final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + value["author"] + ".png");
-          if (!profilePicImagesComments.containsValue(value["author"])) {
-            String authorName = value["author"];
-            await profileRef.getDownloadURL().then((value) {
-              setState(() {
-                profilePicImagesComments[authorName] = ProfilePicture(
-                  name: 'NAME',
-                  radius: 20,
-                  fontsize: 20,
-                  img: value,
-                );
-              });
-            }).catchError((error) {
-              setState(() {
-                profilePicImagesComments[authorName] = const ProfilePicture(
-                  name: 'NAME',
-                  radius: 20,
-                  fontsize: 20,
-                  img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-                );
-              });
-            });
-          }
         });
       });
     }).catchError((error) {
@@ -213,6 +222,22 @@ class _QuestionsPageState extends State<QuestionsPage> {
       setState(() {
         commentsController.clear();
       });
+      //add pics for comments
+      if (uploadQuestionPicture || takeQuestionPicture) {
+        try {
+          await uploadedPicProfileRef.putFile(uploadedPicFile);
+          await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
+            "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
+            "uploadedpictime" : questionPicTime,
+          }).then((value) {
+            print("uploaded question pic ");
+          }).catchError((error) {
+            print("not able to upload comment pic " + error.toString());
+          });
+        } catch (e) {
+          print("could not upoload comment pic " + e.toString());
+        }
+      }
     }).catchError((error) {
       print("could not add comment " + error.toString());
     });
@@ -221,13 +246,9 @@ class _QuestionsPageState extends State<QuestionsPage> {
   Future<void> voteComment(Comment c, int rating) async {
     bool alreadyVoted = false;
     bool differentScore = false;
-    print(question.author + "+" + question.uuid);
     await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + question.uuid).child("comments").child(c.timeStamp + "+" + c.UID).child("voters").once().
     then((value) {
-      print("HELLOOOO");
       var info = value.snapshot.value as Map;
-      print("INFO GET UID");
-      print(info[getUID()]);
       if (info.containsKey(getUID())) {
         if (info[getUID()] == rating) {
           print("Same rating as before");
@@ -271,23 +292,58 @@ class _QuestionsPageState extends State<QuestionsPage> {
     });
   }
 
-  Future<void> replyToComment(String replyComment) async {
+  Future<void> replyToComment(String replyComment, String replyContent) async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     String uuid = questionUUID.v4();
     await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + question.uuid).child("comments").child(replyComment).child("replies").child(timeStamp.toString() + "+" + getUID()).update({
       "author": getUID(),
       "timestamp": timeStamp,
-      "content": commentsController.text,
+      "content": replyContent,
       "uuid" : uuid,
     }).
     then((value) async {
       await getComments();
       setState(() {
-        commentsController.clear();
+        //replyController.clear();
+        print("replied to comment");
       });
     }).catchError((error) {
-      print("could not add comment " + error.toString());
+      print("could not reply to comment " + error.toString());
     });
+  }
+
+  Future<void> uploadCommentPic() async {
+    int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    questionPicTime = timeStamp;
+    final storageRef = FirebaseStorage.instance.ref();
+    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final ImagePicker questionImagePicker = ImagePicker();
+    XFile? xFile = await questionImagePicker.pickImage(
+      source: ImageSource.gallery,
+    );
+    File f = File(xFile!.path);
+    uploadedPicProfileRef = profileRef;
+    uploadedPicFile = f;
+    if (uploadedPicFile != null) {
+      uploadQuestionPicture = true;
+    }
+  }
+
+  Future<void> takeCommentPic() async {
+    int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    questionPicTime = timeStamp;
+    final storageRef = FirebaseStorage.instance.ref();
+    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final ImagePicker questionImagePicker = ImagePicker();
+    XFile? xFile = await questionImagePicker.pickImage(
+      source: ImageSource.camera,
+    );
+    File f = File(xFile!.path);
+    uploadedPicProfileRef = profileRef;
+    uploadedPicFile = f;
+    if (uploadedPicFile != null) {
+      takeQuestionPicture = true;
+    }
   }
 
   @override
@@ -295,8 +351,6 @@ class _QuestionsPageState extends State<QuestionsPage> {
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(int.parse(question.time));
     String date = DateFormat('y/M/d   kk:mm').format(dt);
     comments.sort((a, b) => int.parse(a.timeStamp).compareTo(int.parse(b.timeStamp)));
-    print("QUESTION PIC");
-    print(questionPic);
 
     return Scaffold(
       appBar: AppBar(
@@ -364,7 +418,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
               itemBuilder: (BuildContext context, int index) {
                 return Column(
                   children: [
-                    _buildRow(index),
+                    _buildComments(index),
                     Divider(),
                   ],
                 );
@@ -377,13 +431,29 @@ class _QuestionsPageState extends State<QuestionsPage> {
                 hintText: "Reply",
               ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                addComments().then((value) {
-                  controller.jumpTo(controller.position.maxScrollExtent);
-                });
-              },
-              child: Text("Send"),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    addComments().then((value) {
+                      controller.jumpTo(controller.position.maxScrollExtent);
+                    });
+                  },
+                  child: Text("Send"),
+                ),
+                IconButton(
+                  onPressed: () {
+                    uploadCommentPic();
+                  },
+                  icon: Icon(Icons.photo),
+                ),
+                IconButton(
+                  onPressed: () {
+                    takeCommentPic();
+                  },
+                  icon: Icon(Icons.camera_alt_outlined),
+                ),
+              ],
             ),
           ],
         ),
@@ -392,16 +462,14 @@ class _QuestionsPageState extends State<QuestionsPage> {
   }
 
   //widget for comments
-  Widget _buildRow(int index){
+  Widget _buildComments(int index){
     Comment comment = comments[index];
-    print(comment.timeStamp);
     int time = int.parse(comment.timeStamp);
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(time);
     String date = DateFormat('y/M/d   kk:mm').format(dt);
     String commenterUID = comment.UID;
-    var img = profilePicImagesComments[commenterUID];
-    print("IMAGE");
-    print(img);
+    var img = profilePicImages[commenterUID];
+    TextEditingController replyController = new TextEditingController();
 
     BoxDecoration normalComment = BoxDecoration(
       border: Border.all(
@@ -420,81 +488,120 @@ class _QuestionsPageState extends State<QuestionsPage> {
     return Container(
       decoration: comment.isCorrect? correctStyle : normalComment,
       padding: EdgeInsets.all(10.0),
-      child: Row(
+      child: Column(
         children: [
-          Column(
+          Row(
             children: [
-              IconButton(
-                onPressed: () {
-                  if (comment.UID.compareTo(getUID()) != 0)
-                    voteComment(comment, 1);
-                },
-                icon: Icon(Icons.arrow_circle_up),
+              Column(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0)
+                        voteComment(comment, 1);
+                    },
+                    icon: Icon(Icons.arrow_circle_up),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0)
+                        voteComment(comment, -1);
+                    },
+                    icon: Icon(Icons.arrow_circle_down),
+                  ),
+                ],
               ),
-              IconButton(
+              TextButton(
+                child: Container(
+                  height: 50,
+                  width: 50,
+                  child: img,
+                ),
                 onPressed: () {
-                  if (comment.UID.compareTo(getUID()) != 0)
-                    voteComment(comment, -1);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
+                    ),
+                  );
                 },
-                icon: Icon(Icons.arrow_circle_down),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(comment.content),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(comment.username),
+                      Text(" "),
+                      Text(date),
+                      Text(" "),
+                      Text(comment.score.toString()),
+                      if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0)
+                        IconButton(
+                          onPressed: () {
+                            markRightAnswer(comment);
+                          },
+                          icon: Icon(Icons.check),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
-          TextButton(
-            child: Container(
-              height: 50,
-              width: 50,
-              child: img,
+          TextField(
+            controller: replyController,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: "Reply",
             ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
-                ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                  onPressed: () async {
+                    // replyButtonClicked = true;
+                    // repliedComment = comment.timeStamp + "+" + comment.UID;
+                    await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
+                  },
+                  icon: Icon(Icons.reply),
+              ),
+              IconButton(
+                  onPressed: () {
+
+                  },
+                  icon: Icon(Icons.add),
+              ),
+            ],
+          ),
+          ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: comment.replies.length,
+            shrinkWrap: true,
+            controller: controller,
+            itemBuilder: (BuildContext context, int index) {
+              return Column(
+                children: [
+                  _buildReply(comment.replies.elementAt(index)),
+                  Divider(),
+                ],
               );
             },
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(comment.content),
-                ],
-              ),
-              Row(
-                children: [
-                  Text(comment.username),
-                  Text(" "),
-                  Text(date),
-                  Text(" "),
-                  Text(comment.score.toString()),
-                  if (question.author.compareTo(getUID()) == 0)
-                    IconButton(
-                      onPressed: () {
-                        markRightAnswer(comment);
-                      },
-                      icon: Icon(Icons.check),
-                    ),
-                ],
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReply(int index, int replyIndex) {
-    Comment comment = comments[index].replies[replyIndex];
-    print(comment.timeStamp);
-    int time = int.parse(comment.timeStamp);
+  Widget _buildReply(Comment reply) {
+    int time = int.parse(reply.timeStamp);
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(time);
     String date = DateFormat('y/M/d   kk:mm').format(dt);
-    String commenterUID = comment.UID;
-    var img = profilePicImagesComments[commenterUID];
-    print("IMAGE");
-    print(img);
+    String commenterUID = reply.UID;
+    var img = profilePicImages[commenterUID];
 
     BoxDecoration normalComment = BoxDecoration(
         border: Border.all(
@@ -511,7 +618,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     );
 
     return Container(
-      decoration: comment.isCorrect? correctStyle : normalComment,
+      decoration: reply.isCorrect? correctStyle : normalComment,
       padding: EdgeInsets.all(10.0),
       child: Row(
         children: [
@@ -519,15 +626,15 @@ class _QuestionsPageState extends State<QuestionsPage> {
             children: [
               IconButton(
                 onPressed: () {
-                  if (comment.UID.compareTo(getUID()) != 0)
-                    voteComment(comment, 1);
+                  if (reply.UID.compareTo(getUID()) != 0)
+                    voteComment(reply, 1);
                 },
                 icon: Icon(Icons.arrow_circle_up),
               ),
               IconButton(
                 onPressed: () {
-                  if (comment.UID.compareTo(getUID()) != 0)
-                    voteComment(comment, -1);
+                  if (reply.UID.compareTo(getUID()) != 0)
+                    voteComment(reply, -1);
                 },
                 icon: Icon(Icons.arrow_circle_down),
               ),
@@ -542,7 +649,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
+                  builder: (context) => PublicProfilePage(uid: reply.UID.toString()),
                 ),
               );
             },
@@ -552,20 +659,20 @@ class _QuestionsPageState extends State<QuestionsPage> {
             children: [
               Row(
                 children: [
-                  Text(comment.content),
+                  Text(reply.content),
                 ],
               ),
               Row(
                 children: [
-                  Text(comment.username),
+                  Text(reply.username),
                   Text(" "),
                   Text(date),
                   Text(" "),
-                  Text(comment.score.toString()),
-                  if (question.author.compareTo(getUID()) == 0)
+                  Text(reply.score.toString()),
+                  if (question.author.compareTo(getUID()) == 0 && reply.UID.compareTo(getUID()) != 0)
                     IconButton(
                       onPressed: () {
-                        markRightAnswer(comment);
+                        markRightAnswer(reply);
                       },
                       icon: Icon(Icons.check),
                     ),

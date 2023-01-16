@@ -39,7 +39,6 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     await FirebaseDatabase.instance.ref().child("Questions").child(title).once().
     then((value) {
       var info = value.snapshot.value as Map;
-      print(info);
       setState(() {
         Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"]);
         questions.add(q);
@@ -69,10 +68,6 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     then((value) {
       var info = value.snapshot.value as Map;
       info.forEach((key, value){
-        print("key");
-        print(key);
-        print("value");
-        print(value);
         lookUpQuestion2(key);
       });
     }).catchError((error) {
@@ -80,123 +75,9 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     });
   }
 
-  // Future<void> lookUpCommnents(String questionTitle) async {
-  //   await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").once().
-  //   then((value) {
-  //     var info = value.snapshot.value as Map;
-  //     print(info);
-  //     setState(() {
-  //       Comment c = new Comment(getUID(), info["content"], info["timeStamp"], info["username"], info["score"], info["isCorrect"]);
-  //     });
-  //   }).catchError((error) {
-  //     print("could not look up comment" + error.toString());
-  //   });
-  // }
-
-  // Future<void> lookUpComments(String questionTitle) async {
-  //   await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).once().
-  //   then((value) {
-  //     var info = value.snapshot.value as Map;
-  //     print(info);
-  //     setState(() {
-  //       Question q = Question(info["time"].toString(), questionTitle, info["content"], info["author"]);
-  //       answeredQuestions.add(q);
-  //       print(answeredQuestions);
-  //     });
-  //   }).catchError((error) {
-  //     print("could not look up comment" + error.toString());
-  //   });
-  // }
-
   @override
   Widget build(BuildContext context) {
     late TabController _tabController = new TabController(length: 2, vsync: this);
-    // @override
-    // void initState() {
-    //   super.initState();
-    //   // _tabController = TabController(vsync: this, length: 2);
-    // }
-
-    // @override
-    // void dispose() {
-    //   _tabController.dispose();
-    //   super.dispose();
-    // }
-    // return Scaffold(
-    //   appBar: AppBar(
-    //     title: Text("History"),
-    //   ),
-    //   body: Column(
-    //     children: [
-    //       Expanded(
-    //         flex: 5,
-    //           child: ElevatedButton(
-    //             onPressed: () {
-    //               showQuestion();
-    //             },
-    //             child: Text("Questions"),
-    //           )
-    //       ),
-    //       Expanded(
-    //         flex: 45,
-    //         child: Column(
-    //           mainAxisSize: MainAxisSize.min,
-    //           children: [
-    //             Visibility(
-    //               visible: showQuestions,
-    //               child: ListView.builder(
-    //                   shrinkWrap: true,
-    //                   padding: const EdgeInsets.all(8),
-    //                   itemCount: questions.length,
-    //                   itemBuilder: (BuildContext context, int index) {
-    //                     return Column(
-    //                       children: [
-    //                         _buildRow(index, questions),
-    //                         Divider(),
-    //                       ],
-    //                     );
-    //                   }
-    //               ),
-    //             ),
-    //           ],
-    //         ),
-    //       ),
-    //       Expanded(
-    //           flex: 5,
-    //           child: ElevatedButton(
-    //             onPressed: () {
-    //               showAnswer();
-    //             },
-    //             child: Text("Answers"),
-    //           )
-    //       ),
-    //       Expanded(
-    //         flex: 45,
-    //           child:Column(
-    //             mainAxisSize: MainAxisSize.min,
-    //             children: [
-    //               Visibility(
-    //                 visible: showAnswers,
-    //                 child: ListView.builder(
-    //                   shrinkWrap: true,
-    //                   padding: const EdgeInsets.all(8),
-    //                   itemCount: answeredQuestions.length,
-    //                     itemBuilder: (BuildContext context, int index) {
-    //                       return Column(
-    //                         children: [
-    //                           _buildRow(index, answeredQuestions),
-    //                           Divider(),
-    //                         ],
-    //                       );
-    //                     }
-    //                 ),
-    //               ),
-    //             ],
-    //           ),
-    //       )
-    //     ],
-    //   )
-    // );
     return Scaffold(
       appBar: AppBar(
         title: Text(
