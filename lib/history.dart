@@ -40,7 +40,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     then((value) {
       var info = value.snapshot.value as Map;
       setState(() {
-        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"]);
+        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
         questions.add(q);
       });
     }).catchError((onError) {
@@ -55,7 +55,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
       var info = value.snapshot.value as Map;
       print(info);
       setState(() {
-        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"]);
+        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
         answeredQuestions.add(q);
       });
     }).catchError((onError) {

@@ -230,7 +230,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
             "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
             "uploadedpictime" : questionPicTime,
           }).then((value) {
-            print("uploaded question pic ");
+            print("uploaded comment pic ");
           }).catchError((error) {
             print("not able to upload comment pic " + error.toString());
           });
@@ -381,22 +381,28 @@ class _QuestionsPageState extends State<QuestionsPage> {
                       fontSize: 20,
                     ),
                   ),
-                  Text("             "),
+                  Text("      "),
                   Text(
                       date,
                     style: TextStyle(
                       fontSize: 20,
                     ),
                   ),
+                  Text("  "),
+                  Text(question.subject),
                 ],
               ),
             Container(
               alignment: Alignment.centerLeft,
               child: Column(
                 children: [
-                  Text(
-                      question.content,
-                    textAlign: TextAlign.left,
+                  Row(
+                    children: [
+                      Text(
+                          question.content,
+                        textAlign: TextAlign.left,
+                      ),
+                    ],
                   ),
                   Container(
                     width: 150,

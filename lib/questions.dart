@@ -22,8 +22,9 @@ class Question {
   String content;
   String author;
   String uuid;
+  String subject;
 
-  Question(this.time, this.title, this.content, this.author, this.uuid);
+  Question(this.time, this.title, this.content, this.author, this.uuid, this.subject);
 }
 
 class _QuestionsState extends State<Questions> {
@@ -44,7 +45,7 @@ class _QuestionsState extends State<Questions> {
       setState(() {
         info.forEach((key, value) async {
           Question q;
-          q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"]);
+          q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"], value["subject"]);
           if (value["author"].toString().compareTo(getUID()) != 0) {
             if (filter.isEmpty) {
               questions.add(q);
@@ -172,7 +173,13 @@ class _QuestionsState extends State<Questions> {
             ),
           ),
           title: Text(questions[index].title),
-          subtitle: Text(date),
+          subtitle: Row(
+            children: [
+              Text(date),
+              Text(" "),
+              Text(questions[index].subject),
+            ],
+          ),
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(

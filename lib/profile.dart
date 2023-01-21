@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:bs_flutter_selectbox/bs_flutter_selectbox.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +15,7 @@ import 'package:tutor_app/questions.dart';
 import 'package:tutor_app/settings.dart';
 import 'package:tutor_app/support_page.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 
 import 'login.dart';
 
@@ -34,7 +36,7 @@ class _ProfileState extends State<Profile> {
   int currentPageIndex = 1;
   String name = "";
   String grade = "";
-  List<String> questionSubject = [];
+  //List<String> questionSubject = [];
   List<dynamic> subjects = [];
   List<String> comments = [];
   int userScore = 0;
@@ -45,6 +47,7 @@ class _ProfileState extends State<Profile> {
   var uploadedPicProfileRef;
   var uploadedPicFile;
   var questionPicTime;
+  String questionSubject = "";
   
   _ProfileState() {
     getProfileInfo();
@@ -122,6 +125,16 @@ class _ProfileState extends State<Profile> {
     });
   }
 
+  Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
+    String combined = questionTitle + " " + questionDescription;
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/" + combined;
+    final uri = Uri.parse(url);
+    final response = await http.get(uri);
+    var responseData = json.decode(response.body);
+    print(responseData);
+    return responseData;
+  }
+
   Future<void> createQuestion() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     String uuid = questionUUID.v4();
@@ -133,6 +146,7 @@ class _ProfileState extends State<Profile> {
           "comments": comments,
           "title": titleController.text,
           "uuid": uuid,
+          "subject": await getQuestionSubject(titleController.text, contentController.text),
         }
     ).then((value) async {
       print("Successfully uploaded question");
