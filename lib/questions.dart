@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -11,6 +12,7 @@ import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/profile.dart';
 import 'package:tutor_app/public_profile_page.dart';
 import 'package:tutor_app/questions_page.dart';
+import 'package:http/http.dart' as http;
 
 class Questions extends StatefulWidget {
   const Questions({Key? key}) : super(key: key);
@@ -43,25 +45,39 @@ class _QuestionsState extends State<Questions> {
 
   Future<void> getQuestions() async {
     questions = [];
-    await FirebaseDatabase.instance.ref().child("Questions").once().
-    then((result) {
-      var info = result.snapshot.value as Map;
-      setState(() {
-        info.forEach((key, value) async {
-          Question q;
-          q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"], value["subject"]);
-          if (value["author"].toString().compareTo(getUID()) != 0) {
-            if (filter.isEmpty) {
+    if (filter.isEmpty) {
+      await FirebaseDatabase.instance.ref().child("Questions").once().
+      then((result) {
+        var info = result.snapshot.value as Map;
+        setState(() {
+          info.forEach((key, value) async {
+            Question q;
+            q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"], value["subject"]);
+            if (value["author"].toString().compareTo(getUID()) != 0) {
+              //if (filter.isEmpty) {
               questions.add(q);
-            } else if (q.title.contains(filter)){
-              questions.add(q);
+              // } else if (q.title.contains(filter)){
+              //   questions.add(q);
+              // }
             }
-          }
+          });
         });
+      }).catchError((error) {
+        print("could not get question info " + error.toString());
       });
-    }).catchError((error) {
-      print("could not get question info " + error.toString());
-    });
+    } else {
+      String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/" + filter;
+      final uri = Uri.parse(url);
+      final response = await http.get(uri);
+      var responseData = json.decode(response.body);
+      print(responseData);
+      for (int i = 0; i < responseData.length; i++) {
+        Question questionToAdd = await getQuestionInfo(responseData[i].toString());
+        setState(() {
+          questions.add(questionToAdd);
+        });
+      }
+    }
   }
   
   Future<void> getQuestionProfilePics() async {
@@ -120,11 +136,7 @@ class _QuestionsState extends State<Questions> {
     await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
     then((value) {
       var info = value.snapshot.value as Map;
-      info.forEach((key, value) {
-        q = new Question(value["time"], value["title"], value["content"], value["author"], value["uuid"], value["subject"]);
-      });
-    }).catchError((error) {
-      print("could not get question info " +  error.toString());
+      q = new Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
     });
     return q;
   }
@@ -132,24 +144,28 @@ class _QuestionsState extends State<Questions> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text("Questions"),
       ),
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          OutlineSearchBar(
-            textEditingController: searchController,
-            hintText: "Search",
-            onClearButtonPressed: (value) {
-              searchController.clear();
-            },
-            onSearchButtonPressed: (value) {
-              setState(() {
-                filter = value.toString();
-                getQuestions();
-              });
-            },
+          Expanded(
+            flex:10,
+            child: OutlineSearchBar(
+              textEditingController: searchController,
+              hintText: "Search",
+              onClearButtonPressed: (value) {
+                searchController.clear();
+              },
+              onSearchButtonPressed: (value) {
+                setState(() {
+                  filter = value.toString();
+                  getQuestions();
+                });
+              },
+            ),
           ),
           if (questions.length == 0)
             Center(
@@ -166,19 +182,22 @@ class _QuestionsState extends State<Questions> {
               ),
             ),
           if (questions.length != 0)
-          ListView.builder(
-            shrinkWrap: true,
-              padding: const EdgeInsets.all(8),
-              itemCount: questions.length,
-              itemBuilder: (BuildContext context, int index) {
-                return Column(
-                  children: [
-                    _buildRow(index),
-                    Divider(),
-                  ],
-                );
-              }
-            ),
+          Expanded(
+            flex: 90,
+            child: ListView.builder(
+              shrinkWrap: true,
+                padding: const EdgeInsets.all(8),
+                itemCount: questions.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return Column(
+                    children: [
+                      _buildRow(index),
+                      Divider(),
+                    ],
+                  );
+                }
+              ),
+          ),
         ],
       ),
       );
