@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +35,7 @@ class _QuestionsState extends State<Questions> {
   TextEditingController searchController = new TextEditingController();
   String filter = "";
   var questionProfilePics = new Map();
+  List<String> interestedSubjects = [];
 
   _QuestionsState() {
     getQuestions().then((value) => getQuestionProfilePics());
@@ -93,6 +97,38 @@ class _QuestionsState extends State<Questions> {
     });
   }
 
+  Future<void> getUserSubjects() async {
+    await FirebaseDatabase.instance.ref().child("User").child(getUID()).once().
+    then((value2) {
+      var info = value2.snapshot.value as Map;
+      info.forEach((key, value) {
+        if (key.compareTo("subjects") == 0) {
+          for (var i = 0; i < value.length; i++) {
+            if (!interestedSubjects.contains(value[i].toLowerCase().toString())) {
+              interestedSubjects.add(value[i].toLowerCase().toString());
+            }
+          }
+        }
+      });
+    }).catchError((error) {
+      print("could not get interested subjects " + error.toString());
+    });
+  }
+
+  Future<Question> getQuestionInfo(String questionUUID) async {
+    var q;
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      info.forEach((key, value) {
+        q = new Question(value["time"], value["title"], value["content"], value["author"], value["uuid"], value["subject"]);
+      });
+    }).catchError((error) {
+      print("could not get question info " +  error.toString());
+    });
+    return q;
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,42 +189,51 @@ class _QuestionsState extends State<Questions> {
     String date = DateFormat('y/M/d   kk:mm').format(dt);
     String questionAuthorUID = questions[index].author;
     var img = questionProfilePics[questionAuthorUID];
+    getUserSubjects();
+    String questionSubject = questions[index].subject.toString();
+    print(interestedSubjects);
+    print(questionSubject);
+    print(interestedSubjects.contains(questionSubject.toString().toLowerCase()));
 
-    return Container(
-      height: 80,
-      child: Center(
-        child: ListTile(
-          leading: TextButton(
-            onPressed: () {
+    //if (interestedSubjects.contains(questionSubject.toString().toLowerCase())) {
+      return Container(
+        height: 80,
+        child: Center(
+          child: ListTile(
+            leading: TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => PublicProfilePage(uid: questionAuthorUID),
+                  ),
+                );
+              },
+              child: Container(
+                child: img,
+                height: 50,
+                width: 50,
+              ),
+            ),
+            title: Text(questions[index].title),
+            subtitle: Row(
+              children: [
+                Text(date),
+                Text(" "),
+                Text(questions[index].subject),
+              ],
+            ),
+            onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => PublicProfilePage(uid: questionAuthorUID),
+                  builder: (context) => QuestionsPage(q: questions[index]),
                 ),
               );
             },
-            child: Container(
-              child: img,
-              height: 50,
-              width: 50,
-            ),
           ),
-          title: Text(questions[index].title),
-          subtitle: Row(
-            children: [
-              Text(date),
-              Text(" "),
-              Text(questions[index].subject),
-            ],
-          ),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => QuestionsPage(q: questions[index]),
-              ),
-            );
-          },
         ),
-      ),
-    );
+      );
+    // } else {
+    //   return Container();
+    // }
   }
 }
