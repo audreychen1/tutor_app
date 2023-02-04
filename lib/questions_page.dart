@@ -81,7 +81,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
             }).catchError((error) {
               print("Could not load profile pictur:" +error.toString());
               setState(() {
-                questionAuthorProfilePic = ProfilePicture(
+                questionAuthorProfilePic = const ProfilePicture(
                   name: 'NAME',
                   radius: 20,
                   fontsize: 20,
@@ -354,7 +354,14 @@ class _QuestionsPageState extends State<QuestionsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(question.title),
+        title: Text(
+            question.title,
+          style: TextStyle(
+            color: Colors.black,
+          ),
+        ),
+        elevation: 0.0,
+        backgroundColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -411,10 +418,6 @@ class _QuestionsPageState extends State<QuestionsPage> {
                   ),
                 ],
               ),
-            ),
-            Container(
-              color: Colors.red,
-                child: Divider()
             ),
             ListView.builder(
               padding: const EdgeInsets.all(8),

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
@@ -86,11 +87,15 @@ class _SignupState extends State<Signup> {
           ),
           DropDownMultiSelect(
               whenEmpty: "Subjects",
-              options: ["Math", "Science"],
+              options: ["Math", "Science", "Language", "History", "English"],
               selectedValues: subjects,
               onChanged: (List<String> x) {
                 setState(() {
                   subjects  = x;
+                  //messaging.subscribeToTopic
+                  subjects.forEach((element) {
+                    FirebaseMessaging.instance.subscribeToTopic(element);
+                  });
                 });
               }
           ),

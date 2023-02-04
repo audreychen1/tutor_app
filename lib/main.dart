@@ -1,13 +1,20 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:tutor_app/login.dart';
 import 'firebase_options.dart';
 
+Future<void> messageHandler(RemoteMessage message) async {
+  print("background message ${message.notification!.body}");
+}
+
 Future<void> main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  FirebaseMessaging.onBackgroundMessage(messageHandler);
   runApp(const MyApp());
 }
 

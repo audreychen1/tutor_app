@@ -48,6 +48,8 @@ dependencies:
   path_provider:
   image_picker:
   flutter_profile_picture:
+  google_fonts:
+  firebase_messaging:
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,7 @@ import 'package:bs_flutter_selectbox/bs_flutter_selectbox.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
@@ -16,6 +17,7 @@ import 'package:tutor_app/settings.dart';
 import 'package:tutor_app/support_page.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
 
 import 'login.dart';
 
@@ -36,6 +38,7 @@ class _ProfileState extends State<Profile> {
   int currentPageIndex = 1;
   String name = "";
   String grade = "";
+  int numQuestionsAsked = 0;
   //List<String> questionSubject = [];
   List<dynamic> subjects = [];
   List<String> comments = [];
@@ -48,7 +51,27 @@ class _ProfileState extends State<Profile> {
   var uploadedPicFile;
   var questionPicTime;
   String questionSubject = "";
-  
+  String displaySubjects = "";
+  late FirebaseMessaging messaging;
+
+  @override
+  void initState() {
+    super.initState();
+    messaging = FirebaseMessaging.instance;
+    messaging.getToken().then((value) {
+      print(value);
+    });
+
+    FirebaseMessaging.onMessage.listen((event) {
+      print(event.notification!.body);
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((event) {
+      print("on message");
+    });
+  }
+
+
+
   _ProfileState() {
     getProfileInfo();
     getComments();
@@ -75,7 +98,7 @@ class _ProfileState extends State<Profile> {
       setState(() {
         img = ProfilePicture(
           name: 'NAME',
-          radius: 31,
+          radius: 25,
           fontsize: 21,
           img: info["profilepic"],
         );
@@ -84,7 +107,7 @@ class _ProfileState extends State<Profile> {
       setState(() {
         img = ProfilePicture(
           name: 'NAME',
-          radius: 31,
+          radius: 25,
           fontsize: 21,
           img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
         );
@@ -222,6 +245,9 @@ class _ProfileState extends State<Profile> {
                       createQuestion().then((value) {
                         Navigator.pop(context);
                       });
+                    setState(() {
+                      numQuestionsAsked = numQuestionsAsked + 1;
+                    });
                   },
                   child: Text("Upload"),
               ),
@@ -308,76 +334,205 @@ class _ProfileState extends State<Profile> {
   }
 
   Scaffold profileUI() {
-    //getProfileInfo();
+    if (subjects.isNotEmpty) {
+      displaySubjects = subjects[0];
+      for (var i = 1; i < subjects.length; i++) {
+        displaySubjects = displaySubjects + ", " + subjects[i];
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Profile Page"),
+        automaticallyImplyLeading: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        leading: Builder(builder: (context) =>
+            IconButton(
+              icon: Icon(Icons.settings),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+              color: Colors.grey,
+            ),
+        ),
+        //backgroundColor: Colors.transparent,
+        title: Text(
+            name,
+          style: GoogleFonts.workSans(
+            textStyle: TextStyle(
+              fontSize: 33,
+              color: Colors.black,
+            ),
+          ),
+        ),
         //leading: Icon(Icons.settings),
       ),
       body: Column(
         children: [
+          Placeholder(
+            fallbackHeight: 20,
+            color: Colors.transparent,
+          ),
           Expanded(
-              flex: 25,
+              flex: 20,
               child: Row(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(6.0),
                     child: Container(
-                        height: MediaQuery.of(context).size.width * 0.5,
-                        width: MediaQuery.of(context).size.width * 0.5,
-                        child: img,
+                      height: MediaQuery.of(context).size.width * 0.2,
+                      width: MediaQuery.of(context).size.width * 0.2,
+                      child: img,
                     ),
+                  ),
+                  Placeholder(
+                    fallbackWidth: 20,
+                    color: Colors.transparent,
                   ),
                   Column(
                     children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 50,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Placeholder(
+                        fallbackHeight: 45,
+                        fallbackWidth: 20,
+                        color: Colors.transparent,
                       ),
-                      Text(
-                        "Grade: " + grade,
-                        style: TextStyle(
-                          fontSize: 30,
-                        ),
-                      ),
-                      Text(
-                        "Score: " + userScore.toString(),
-                        style: TextStyle(
-                          fontSize: 30,
-                        ),
+                      Row(
+                        children: [
+                          Column(
+                            children: [
+                              Text(
+                                grade,
+                                style: GoogleFonts.notoSans(
+                                  textStyle:TextStyle(
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                "Grade",
+                                style: GoogleFonts.notoSans(
+                                  textStyle:TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Placeholder(
+                            fallbackWidth: 20,
+                            fallbackHeight: 20,
+                            color: Colors.transparent,
+                          ),
+                          Column(
+                            children: [
+                              Text(
+                                userScore.toString(),
+                                style: GoogleFonts.notoSans(
+                                  textStyle:TextStyle(
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                "Joined",
+                                style: GoogleFonts.notoSans(
+                                  textStyle:TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        ],
                       ),
                     ],
-                  )
+                  ),
                 ],
               )
           ),
           Expanded(
-            flex: 25,
-            child: ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: subjects.length,
-                itemBuilder: (BuildContext context, int index) {
-                  return Container(
-                    child: Center(
-                        child: Text(
-                          subjects[index].toString(),
-                          style: TextStyle(
-                            fontSize: 20,
-                          ),
-                        )
+            flex: 75,
+            child: Column(
+              children: [
+                const ListTile(
+                  title: Text(
+                      "Volunteer Hours",
+                    style: TextStyle(
+                      fontSize: 20,
                     ),
-                  );
-                }
+                  ),
+                  subtitle: Text(
+                      "5",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  leading: Icon(Icons.volunteer_activism),
+                ),
+                ListTile(
+                  title: const Text(
+                      "Subjects",
+                    style: TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                  subtitle: Text(
+                      displaySubjects,
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  leading: Icon(Icons.menu_book_sharp),
+                ),
+                const ListTile(
+                  title: Text(
+                      "Questions Asked",
+                    style: TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                  subtitle: Text(
+                      "0",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  leading: Icon(Icons.question_mark_sharp),
+                ),
+                const ListTile(
+                  title: Text(
+                    "Questions Answered",
+                    style: TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "0",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  leading: Icon(Icons.question_answer_outlined),
+                ),
+                const ListTile(
+                  title: Text(
+                    "Questions Answered Correctly",
+                    style: TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "0",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  leading: Icon(Icons.check),
+                ),
+              ],
             ),
-
-          ),
-          Expanded(
-            flex: 50,
-            child: Container(),
           ),
 
         ],
@@ -395,8 +550,11 @@ class _ProfileState extends State<Profile> {
         child: ListView(
           padding: EdgeInsets.all(8),
           children: [
-            DrawerHeader(
+            SizedBox(
+              height: 100,
+              child: DrawerHeader(
                 child: Text("Settings"),
+              ),
             ),
             ListTile(
               title: Text("Logout"),
@@ -409,12 +567,14 @@ class _ProfileState extends State<Profile> {
                   );
                 });
               },
+              leading: Icon(Icons.logout),
             ),
             ListTile(
               title: Text("Upload Profile Picture"),
               onTap: () async {
                 await uploadProfilePic();
               },
+              leading: Icon(Icons.person),
             ),
             ListTile(
               title: Text("Help"),
@@ -425,6 +585,7 @@ class _ProfileState extends State<Profile> {
                   ),
                 );
               },
+              leading: Icon(Icons.question_mark),
             ),
           ],
         ),
@@ -442,15 +603,11 @@ class _ProfileState extends State<Profile> {
           });
         },
         selectedIndex: currentPageIndex,
-        destinations: [
+        destinations: const [
           NavigationDestination(
               icon: Icon(Icons.question_mark),
               label: 'Questions'
           ),
-          // NavigationDestination(
-          //     icon: Icon(Icons.settings),
-          //     label: 'Settings'
-          // ),
           NavigationDestination(
               icon: Icon(Icons.account_circle_outlined),
               label: 'Profile'

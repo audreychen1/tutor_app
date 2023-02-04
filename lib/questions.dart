@@ -87,13 +87,14 @@ class _QuestionsState extends State<Questions> {
       setState(() {
         info.forEach((key, value) async {
           final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + value["author"] + ".png");
-          await profileRef.getDownloadURL().then((value2) {
-            setState(() async {
+          await profileRef.getDownloadURL().then((value2) async {
+            String url = await profileRef.getDownloadURL();
+            setState(() {
               questionProfilePics[value["author"]] = ProfilePicture(
                 name: 'NAME',
                 radius: 20,
                 fontsize: 20,
-                img: await profileRef.getDownloadURL(),
+                img: url,
               );
             });
           }).catchError((error) {
@@ -210,9 +211,6 @@ class _QuestionsState extends State<Questions> {
     var img = questionProfilePics[questionAuthorUID];
     getUserSubjects();
     String questionSubject = questions[index].subject.toString();
-    print(interestedSubjects);
-    print(questionSubject);
-    print(interestedSubjects.contains(questionSubject.toString().toLowerCase()));
 
     //if (interestedSubjects.contains(questionSubject.toString().toLowerCase())) {
       return Container(
