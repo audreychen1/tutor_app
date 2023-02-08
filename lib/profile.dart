@@ -18,7 +18,6 @@ import 'package:tutor_app/support_page.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
-
 import 'login.dart';
 
 class Profile extends StatefulWidget {
@@ -29,12 +28,12 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-  BsSelectBoxController subController = new BsSelectBoxController(options: [
-    BsSelectBoxOption(value: "Science", text: Text("Science")),
-    BsSelectBoxOption(value: "Math", text: Text("Math")),
+  BsSelectBoxController subController = BsSelectBoxController(options: [
+    const BsSelectBoxOption(value: "Science", text: Text("Science")),
+    const BsSelectBoxOption(value: "Math", text: Text("Math")),
   ]);
-  TextEditingController titleController = new TextEditingController();
-  TextEditingController contentController = new TextEditingController();
+  TextEditingController titleController = TextEditingController();
+  TextEditingController contentController = TextEditingController();
   int currentPageIndex = 1;
   String name = "";
   String grade = "";
@@ -52,25 +51,6 @@ class _ProfileState extends State<Profile> {
   var questionPicTime;
   String questionSubject = "";
   String displaySubjects = "";
-  late FirebaseMessaging messaging;
-
-  @override
-  void initState() {
-    super.initState();
-    messaging = FirebaseMessaging.instance;
-    messaging.getToken().then((value) {
-      print(value);
-    });
-
-    FirebaseMessaging.onMessage.listen((event) {
-      print(event.notification!.body);
-    });
-    FirebaseMessaging.onMessageOpenedApp.listen((event) {
-      print("on message");
-    });
-  }
-
-
 
   _ProfileState() {
     getProfileInfo();
@@ -90,6 +70,16 @@ class _ProfileState extends State<Profile> {
         grade = info["grade"];
         subjects = info["subjects"];
       });
+
+      FirebaseMessaging.instance.unsubscribeFromTopic("Math");
+      FirebaseMessaging.instance.unsubscribeFromTopic("Science");
+      FirebaseMessaging.instance.unsubscribeFromTopic("Language");
+      FirebaseMessaging.instance.unsubscribeFromTopic("History");
+      FirebaseMessaging.instance.unsubscribeFromTopic("English");
+
+      for (String s in subjects) {
+        FirebaseMessaging.instance.subscribeToTopic(s);
+      }
     }).
     catchError((error) {
       print("Could not grab profile info: " + error.toString());
@@ -156,6 +146,12 @@ class _ProfileState extends State<Profile> {
     var responseData = json.decode(response.body);
     print(responseData);
     return responseData;
+  }
+
+  Future<void> sendNotification(String questionTitle, String questionDescription, String topic) async {
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/notify/" + questionTitle + "/" + questionDescription + "/" + topic;
+    final uri = Uri.parse(url);
+    await http.get(uri);
   }
 
   Future<void> createQuestion() async {

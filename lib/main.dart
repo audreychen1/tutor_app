@@ -15,6 +15,20 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   FirebaseMessaging.onBackgroundMessage(messageHandler);
+  //["Math", "Science", "Language", "History", "English"]
+
+  FirebaseMessaging.instance.getToken().then((value) {
+    print(value);
+  });
+
+  FirebaseMessaging.onMessage.listen((event) {
+    print(event.notification!.body);
+  });
+  FirebaseMessaging.onMessageOpenedApp.listen((event) {
+    print("on message");
+  });
+
+  //FirebaseMessaging.instance.subscribeToTopic("Science");
   runApp(const MyApp());
 }
 
