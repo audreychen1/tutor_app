@@ -98,14 +98,16 @@ class _QuestionsState extends State<Questions> {
               );
             });
           }).catchError((error) {
-            setState(() {
-              questionProfilePics[value["author"]] = ProfilePicture(
-                name: 'NAME',
-                radius: 20,
-                fontsize: 20,
-                img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-              );
-            });
+            if (mounted) {
+              setState(() {
+                questionProfilePics[value["author"]] = ProfilePicture(
+                  name: 'NAME',
+                  radius: 20,
+                  fontsize: 20,
+                  img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+                );
+              });
+            }
           });
         });
       });

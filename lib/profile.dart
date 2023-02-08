@@ -2,18 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:bs_flutter_selectbox/bs_flutter_selectbox.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/history.dart';
 import 'package:tutor_app/questions.dart';
-import 'package:tutor_app/settings.dart';
 import 'package:tutor_app/support_page.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
@@ -28,24 +25,35 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
+
+  static const DEFAULT_PROFILE_PICTURE = ProfilePicture(
+    name: 'NAME',
+    radius: 25,
+    fontsize: 21,
+    img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+  );
+  
   BsSelectBoxController subController = BsSelectBoxController(options: [
     const BsSelectBoxOption(value: "Science", text: Text("Science")),
     const BsSelectBoxOption(value: "Math", text: Text("Math")),
+    const BsSelectBoxOption(value: "English", text: Text("English")),
+    const BsSelectBoxOption(value: "Language", text: Text("Language")),
+    const BsSelectBoxOption(value: "History", text: Text("History")),
   ]);
+
   TextEditingController titleController = TextEditingController();
   TextEditingController contentController = TextEditingController();
   int currentPageIndex = 1;
   String name = "";
   String grade = "";
   int numQuestionsAsked = 0;
-  //List<String> questionSubject = [];
   List<dynamic> subjects = [];
   List<String> comments = [];
   int userScore = 0;
   var questionUUID = new Uuid();
   var img;
-  bool uploadQuestionPicture = false;
-  bool takeQuestionPicture = false;
+  bool uploadedQuestionPicture = false;
+  bool tookQuestionPicture = false;
   var uploadedPicProfileRef;
   var uploadedPicFile;
   var questionPicTime;
@@ -54,16 +62,32 @@ class _ProfileState extends State<Profile> {
 
   _ProfileState() {
     getProfileInfo();
-    getComments();
+    getScore();
   }
 
+  ///Unsubscribes from all possible topics and resubscribes based on the
+  ///newly updated subject list.
+  void updateTopicSubscriptions() {
+    FirebaseMessaging.instance.unsubscribeFromTopic("Math");
+    FirebaseMessaging.instance.unsubscribeFromTopic("Science");
+    FirebaseMessaging.instance.unsubscribeFromTopic("Language");
+    FirebaseMessaging.instance.unsubscribeFromTopic("History");
+    FirebaseMessaging.instance.unsubscribeFromTopic("English");
+
+    for (String s in subjects) {
+      FirebaseMessaging.instance.subscribeToTopic(s);
+    }
+  }
+  
+  ///Updates all present state variables by
+  ///making a call to the Realtime Database.
+  ///This includes the name, grade, subjects, and profile picture.
   Future<void> getProfileInfo() async {
+    
     var info;
     await FirebaseDatabase.instance.ref().child("User").child(getUID()).once().
     then((value) async {
       info = value.snapshot.value as Map;
-      print("information:");
-      print(info);
 
       setState(() {
         name = info["name"];
@@ -71,19 +95,12 @@ class _ProfileState extends State<Profile> {
         subjects = info["subjects"];
       });
 
-      FirebaseMessaging.instance.unsubscribeFromTopic("Math");
-      FirebaseMessaging.instance.unsubscribeFromTopic("Science");
-      FirebaseMessaging.instance.unsubscribeFromTopic("Language");
-      FirebaseMessaging.instance.unsubscribeFromTopic("History");
-      FirebaseMessaging.instance.unsubscribeFromTopic("English");
-
-      for (String s in subjects) {
-        FirebaseMessaging.instance.subscribeToTopic(s);
-      }
+      updateTopicSubscriptions();
     }).
     catchError((error) {
-      print("Could not grab profile info: " + error.toString());
+      print("Could not grab profile info: $error");
     });
+    
     try {
       setState(() {
         img = ProfilePicture(
@@ -95,69 +112,111 @@ class _ProfileState extends State<Profile> {
       });
     } catch (error) {
       setState(() {
-        img = ProfilePicture(
-          name: 'NAME',
-          radius: 25,
-          fontsize: 21,
-          img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-        );
+        img = DEFAULT_PROFILE_PICTURE;
       });
     }
   }
 
-  Future<void> getComments() async {
-    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once().
-    then((value) {
-      print("Grabbed comment records");
-      var info = value.snapshot.value as Map;
-      info.forEach((questionTitle, timeStamp) async {
-        //look up question
-        await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()).once().
-        then((value) {
-          var info = value.snapshot.value as Map;
-          if (info["voters"] != null) {
-            int commentScore = 0;
-            var score = info["voters"] as Map;
-            score.forEach((key, value) {
-              commentScore += int.parse(value.toString());
-              print(value.toString());
-            });
-            setState(() {
-              print(commentScore);
-              userScore += commentScore;
-            });
-          }
-        }).catchError((error) {
-          print("could not look up comment" + error.toString());
-        });
-        //look up timestamp comment
-        //access to comment's contents
+  ///Gets the score for a comment by looking through all votes.
+  void tallyUpCommentScore(dynamic comment) {
+    if (comment["voters"] != null) {
+      int commentScore = 0;
+      var score = comment["voters"] as Map;
+      score.forEach((key, value) {
+        commentScore += int.parse(value.toString());
       });
+      setState(() {
+        userScore += commentScore;
+      });
+    }
+  }
+  
+  ///Gets the score for a collection of comments.
+  Future<void> tallyUpAnswers(dynamic answers) async {
+    answers.forEach((questionTitle, timeStamp) async {
+      await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()).once().
+      then((value) {
+        var comment = value.snapshot.value as Map;
+        tallyUpCommentScore(comment);
+      }).catchError((error) {
+        print("could not look up comment $error");
+      });
+    });
+  }
+  
+  ///Looks up the user's comments on record, and tallies up all the scores together.
+  Future<void> getScore() async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once().
+    then((value) async {
+      var answers = value.snapshot.value as Map;
+      await tallyUpAnswers(answers);
     }).catchError((error) {
-      print("could not get comments" + error.toString());
+      print("could not get comments $error");
     });
   }
 
+  ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post.
   Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
-    String combined = questionTitle + " " + questionDescription;
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/" + combined;
+    String combined = "$questionTitle $questionDescription";
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/$combined";
     final uri = Uri.parse(url);
     final response = await http.get(uri);
     var responseData = json.decode(response.body);
-    print(responseData);
     return responseData;
   }
 
+  ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post
+  ///with a given [topic].
   Future<void> sendNotification(String questionTitle, String questionDescription, String topic) async {
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/notify/" + questionTitle + "/" + questionDescription + "/" + topic;
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/notify/$questionTitle/$questionDescription/$topic";
     final uri = Uri.parse(url);
     await http.get(uri);
   }
 
+  ///Adds the [uuid] of a recently made question to the user's records.
+  Future<void> updateRecordsWithQuestion(String uuid) async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
+      uuid: uuid,
+    }).
+    then((value) {
+      print("Set up records");
+    }).catchError((onError) {
+      print("Failed to set up records$onError");
+    });
+  }
+  
+  void clearTextControllers() {
+    setState(() {
+      titleController.text = "";
+      contentController.text = "";
+    });
+  }
+
+  ///Uploads a picture, if the user chose to.
+  Future<void> uploadPictureForQuestion(String uuid) async {
+    if (uploadedQuestionPicture || tookQuestionPicture) {
+      try {
+        await uploadedPicProfileRef.putFile(uploadedPicFile);
+        await FirebaseDatabase.instance.ref().child("Questions").child("${getUID()}+$uuid").update({
+          "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
+          "uploadedpictime" : questionPicTime,
+        }).then((value) {
+          print("uploaded question pic ");
+        }).catchError((error) {
+          print("not able to upload question pic $error");
+        });
+      } catch (e) {
+        print("could not upload question pic $e");
+      }
+    }
+  }
+
+  ///Occurs when a user taps on the create question button.
   Future<void> createQuestion() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     String uuid = questionUUID.v4();
-    await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).set(
+    
+    await FirebaseDatabase.instance.ref().child("Questions").child("${getUID()}+$uuid").set(
         {
           "time": timeStamp,
           "content": contentController.text,
@@ -169,53 +228,31 @@ class _ProfileState extends State<Profile> {
         }
     ).then((value) async {
       print("Successfully uploaded question");
-      await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
-        uuid: uuid,
-      }).
-      then((value) {
-        print("Set up records");
-      }).catchError((onError) {
-        print("Failed to set up records" + onError.toString());
-      });
-
-      setState(() {
-        titleController.text = "";
-        contentController.text = "";
-      });
+      
+      await updateRecordsWithQuestion(uuid);
+      clearTextControllers();
     }).catchError((onError){
-      print("Could not upload question" + onError.toString());
+      print("Could not upload question$onError");
     });
+    
     //upload picture into firebase
-    if (uploadQuestionPicture || takeQuestionPicture) {
-      try {
-        await uploadedPicProfileRef.putFile(uploadedPicFile);
-        await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).update({
-          "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
-          "uploadedpictime" : questionPicTime,
-        }).then((value) {
-          print("uploaded question pic ");
-        }).catchError((error) {
-          print("not able to upload question pic " + error.toString());
-        });
-      } catch (e) {
-        print("could not upoload question pic " + e.toString());
-      }
-    }
+    await uploadPictureForQuestion(uuid);
   }
 
+  ///Displays a pop up showing the form data for creating a new question.
   void showQuestionDialog(BuildContext context) {
     showDialog(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text("New Question"),
+            title: const Text("New Question"),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: titleController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: "Title",
                     ),
@@ -224,12 +261,12 @@ class _ProfileState extends State<Profile> {
                     controller: contentController,
                     minLines: 3,
                     maxLines: null,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: "Content",
                     ),
                   ),
-                  if (uploadQuestionPicture || takeQuestionPicture)
+                  if (uploadedQuestionPicture || tookQuestionPicture)
                     Text(uploadedPicFile.path),
                 ],
               ),
@@ -237,10 +274,11 @@ class _ProfileState extends State<Profile> {
             actions: [
               ElevatedButton(
                   onPressed: () {
-                    if (titleController.text.isNotEmpty && contentController.text.isNotEmpty)
+                    if (titleController.text.isNotEmpty && contentController.text.isNotEmpty) {
                       createQuestion().then((value) {
                         Navigator.pop(context);
                       });
+                    }
                     setState(() {
                       numQuestionsAsked = numQuestionsAsked + 1;
                     });
@@ -251,31 +289,32 @@ class _ProfileState extends State<Profile> {
                 onPressed: () {
                   takeQuestionPic();
                 },
-                child: Icon(Icons.camera_alt_outlined),
                 tooltip: "Take Picture",
+                child: const Icon(Icons.camera_alt_outlined),
               ),
               FloatingActionButton(
                 onPressed: () {
                   uploadQuestionPic();
                 },
-                child: Icon(Icons.photo),
                 tooltip: "Upload Picture",
+                child: const Icon(Icons.photo),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: Text("Cancel"),
+                child: const Text("Cancel"),
               ),
             ],
           );
         }
-        );
+      );
   }
 
+  ///Brings up the user's photo gallery for them to select a picture to use for a profile picture.
   Future<void> uploadProfilePic() async {
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("profilePics/" + getUID() + ".png");
+    final profileRef = storageRef.child("profilePics/${getUID()}.png");
     final ImagePicker picker = ImagePicker();
     XFile? xFile = await picker.pickImage(
         source: ImageSource.gallery
@@ -291,15 +330,16 @@ class _ProfileState extends State<Profile> {
         print("could not upload profile pic");
       });
     } catch (e) {
-      print("couldn't upload pciutre" + e.toString());
+      print("couldn't upload picture$e");
     }
   }
-  
+
+  ///Brings up the user's photo gallery for them to select a picture to use for a question.
   Future<void> uploadQuestionPic() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final profileRef = storageRef.child("questionPics/${getUID()}+$timeStamp.png");
     final ImagePicker questionImagePicker = ImagePicker();
     XFile? xFile = await questionImagePicker.pickImage(
         source: ImageSource.gallery,
@@ -308,15 +348,16 @@ class _ProfileState extends State<Profile> {
     uploadedPicProfileRef = profileRef;
     uploadedPicFile = f;
     if (uploadedPicFile != null) {
-      uploadQuestionPicture = true;
+      uploadedQuestionPicture = true;
     }
   }
 
+  ///Brings up the user's camera for them to use for a question.
   Future<void> takeQuestionPic() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final profileRef = storageRef.child("questionPics/${getUID()}+$timeStamp.png");
     final ImagePicker questionImagePicker = ImagePicker();
     XFile? xFile = await questionImagePicker.pickImage(
       source: ImageSource.camera,
@@ -325,15 +366,211 @@ class _ProfileState extends State<Profile> {
     uploadedPicProfileRef = profileRef;
     uploadedPicFile = f;
     if (uploadedPicFile != null) {
-      takeQuestionPicture = true;
+      tookQuestionPicture = true;
     }
+  }
+
+  Drawer drawerCode() {
+    return Drawer(
+      child: ListView(
+        padding: const EdgeInsets.all(8),
+        children: [
+          const SizedBox(
+            height: 100,
+            child: DrawerHeader(
+              child: Text("Settings"),
+            ),
+          ),
+          ListTile(
+            title: const Text("Logout"),
+            onTap: () async{
+              await FirebaseAuth.instance.signOut().then((value) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const Login(),
+                  ),
+                );
+              });
+            },
+            leading: const Icon(Icons.logout),
+          ),
+          ListTile(
+            title: const Text("Upload Profile Picture"),
+            onTap: () async {
+              await uploadProfilePic();
+            },
+            leading: const Icon(Icons.person),
+          ),
+          ListTile(
+            title: const Text("Help"),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SupportPage(),
+                ),
+              );
+            },
+            leading: const Icon(Icons.question_mark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Row createTopRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(6.0),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.width * 0.2,
+            width: MediaQuery.of(context).size.width * 0.2,
+            child: img,
+          ),
+        ),
+        Row(
+          children: [
+            Column(
+              children: [
+                Text(
+                  grade,
+                  style: GoogleFonts.notoSans(
+                    textStyle:const TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
+                Text(
+                  "Grade",
+                  style: GoogleFonts.notoSans(
+                    textStyle:const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Placeholder(
+              fallbackWidth: 20,
+              fallbackHeight: 20,
+              color: Colors.transparent,
+            ),
+            Column(
+              children: [
+                Text(
+                  userScore.toString(),
+                  style: GoogleFonts.notoSans(
+                    textStyle:const TextStyle(
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
+                Text(
+                  "Joined",
+                  style: GoogleFonts.notoSans(
+                    textStyle:const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          ],
+        ),
+      ],
+    );
+  }
+
+  Column createMiddleColumn() {
+    return Column(
+      children: [
+        const ListTile(
+          title: Text(
+            "Volunteer Hours",
+            style: TextStyle(
+              fontSize: 20,
+            ),
+          ),
+          subtitle: Text(
+            "5",
+            style: TextStyle(
+              fontSize: 30,
+            ),
+          ),
+          leading: Icon(Icons.volunteer_activism),
+        ),
+        ListTile(
+          title: const Text(
+            "Subjects",
+            style: TextStyle(
+              fontSize: 20,
+            ),
+          ),
+          subtitle: Text(
+            displaySubjects,
+            style: const TextStyle(
+              fontSize: 30,
+            ),
+          ),
+          leading: const Icon(Icons.menu_book_sharp),
+        ),
+        const ListTile(
+          title: Text(
+            "Questions Asked",
+            style: TextStyle(
+              fontSize: 20,
+            ),
+          ),
+          subtitle: Text(
+            "0",
+            style: TextStyle(
+              fontSize: 30,
+            ),
+          ),
+          leading: Icon(Icons.question_mark_sharp),
+        ),
+        const ListTile(
+          title: Text(
+            "Questions Answered",
+            style: TextStyle(
+              fontSize: 20,
+            ),
+          ),
+          subtitle: Text(
+            "0",
+            style: TextStyle(
+              fontSize: 30,
+            ),
+          ),
+          leading: Icon(Icons.question_answer_outlined),
+        ),
+        const ListTile(
+          title: Text(
+            "Questions Answered Correctly",
+            style: TextStyle(
+              fontSize: 20,
+            ),
+          ),
+          subtitle: Text(
+            "0",
+            style: TextStyle(
+              fontSize: 30,
+            ),
+          ),
+          leading: Icon(Icons.check),
+        ),
+      ],
+    );
   }
 
   Scaffold profileUI() {
     if (subjects.isNotEmpty) {
       displaySubjects = subjects[0];
       for (var i = 1; i < subjects.length; i++) {
-        displaySubjects = displaySubjects + ", " + subjects[i];
+        displaySubjects = "$displaySubjects, " + subjects[i];
       }
     }
 
@@ -344,7 +581,7 @@ class _ProfileState extends State<Profile> {
         backgroundColor: Colors.transparent,
         leading: Builder(builder: (context) =>
             IconButton(
-              icon: Icon(Icons.settings),
+              icon: const Icon(Icons.settings),
               onPressed: () {
                 Scaffold.of(context).openDrawer();
               },
@@ -355,7 +592,7 @@ class _ProfileState extends State<Profile> {
         title: Text(
             name,
           style: GoogleFonts.workSans(
-            textStyle: TextStyle(
+            textStyle: const TextStyle(
               fontSize: 33,
               color: Colors.black,
             ),
@@ -365,170 +602,17 @@ class _ProfileState extends State<Profile> {
       ),
       body: Column(
         children: [
-          Placeholder(
+          const Placeholder(
             fallbackHeight: 20,
             color: Colors.transparent,
           ),
           Expanded(
               flex: 20,
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(6.0),
-                    child: Container(
-                      height: MediaQuery.of(context).size.width * 0.2,
-                      width: MediaQuery.of(context).size.width * 0.2,
-                      child: img,
-                    ),
-                  ),
-                  Placeholder(
-                    fallbackWidth: 20,
-                    color: Colors.transparent,
-                  ),
-                  Column(
-                    children: [
-                      Placeholder(
-                        fallbackHeight: 45,
-                        fallbackWidth: 20,
-                        color: Colors.transparent,
-                      ),
-                      Row(
-                        children: [
-                          Column(
-                            children: [
-                              Text(
-                                grade,
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 20,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                "Grade",
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 25,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Placeholder(
-                            fallbackWidth: 20,
-                            fallbackHeight: 20,
-                            color: Colors.transparent,
-                          ),
-                          Column(
-                            children: [
-                              Text(
-                                userScore.toString(),
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 20,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                "Joined",
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 25,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              )
+              child: createTopRow()
           ),
           Expanded(
             flex: 75,
-            child: Column(
-              children: [
-                const ListTile(
-                  title: Text(
-                      "Volunteer Hours",
-                    style: TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                  subtitle: Text(
-                      "5",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.volunteer_activism),
-                ),
-                ListTile(
-                  title: const Text(
-                      "Subjects",
-                    style: TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                  subtitle: Text(
-                      displaySubjects,
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.menu_book_sharp),
-                ),
-                const ListTile(
-                  title: Text(
-                      "Questions Asked",
-                    style: TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                  subtitle: Text(
-                      "0",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.question_mark_sharp),
-                ),
-                const ListTile(
-                  title: Text(
-                    "Questions Answered",
-                    style: TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                  subtitle: Text(
-                    "0",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.question_answer_outlined),
-                ),
-                const ListTile(
-                  title: Text(
-                    "Questions Answered Correctly",
-                    style: TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                  subtitle: Text(
-                    "0",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.check),
-                ),
-              ],
-            ),
+            child: SingleChildScrollView(child: createMiddleColumn())
           ),
 
         ],
@@ -537,55 +621,12 @@ class _ProfileState extends State<Profile> {
           onPressed: () {
             showQuestionDialog(context);
           },
-          child: Icon(
+        tooltip: "New Question",
+          child: const Icon(
               Icons.add,
           ),
-        tooltip: "New Question",
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.all(8),
-          children: [
-            SizedBox(
-              height: 100,
-              child: DrawerHeader(
-                child: Text("Settings"),
-              ),
-            ),
-            ListTile(
-              title: Text("Logout"),
-              onTap: () async{
-                await FirebaseAuth.instance.signOut().then((value) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => Login(),
-                    ),
-                  );
-                });
-              },
-              leading: Icon(Icons.logout),
-            ),
-            ListTile(
-              title: Text("Upload Profile Picture"),
-              onTap: () async {
-                await uploadProfilePic();
-              },
-              leading: Icon(Icons.person),
-            ),
-            ListTile(
-              title: Text("Help"),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => SupportPage(),
-                  ),
-                );
-              },
-              leading: Icon(Icons.question_mark),
-            ),
-          ],
-        ),
-      ),
+      drawer: drawerCode()
     );
   }
 
@@ -615,10 +656,9 @@ class _ProfileState extends State<Profile> {
         ],
       ),
       body: <Widget> [
-        Questions(),
-        // Settings(),
+        const Questions(),
         profileUI(),
-        History(),
+        const History(),
       ] [currentPageIndex],
     );
   }
