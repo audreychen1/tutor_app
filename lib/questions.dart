@@ -34,85 +34,114 @@ class Question {
 
 class _QuestionsState extends State<Questions> {
   List<Question> questions = [];
-  TextEditingController searchController = new TextEditingController();
+  TextEditingController searchController = TextEditingController();
   String filter = "";
-  var questionProfilePics = new Map();
+  var questionProfilePics = Map();
   List<String> interestedSubjects = [];
 
   _QuestionsState() {
-    getQuestions().then((value) => getQuestionProfilePics());
+    getQuestions().then((value) => getAllProfilePics());
   }
 
+  ///Adds data from a specific question to a Question object and adds it to the question list.
+  void addQuestionToList(dynamic questionData) {
+    Question q = Question(questionData["time"].toString(), questionData["title"], questionData["content"], questionData["author"], questionData["uuid"], questionData["subject"]);
+    if (questionData["author"].toString().compareTo(getUID()) != 0) {
+      questions.add(q);
+    }
+  }
+
+  ///Adds all questions given a dictionary representing a query.
+  void addAllQuestions(dynamic questionQuery) {
+    setState(() {
+      questionQuery.forEach((questionUUID, questionData) {
+        addQuestionToList(questionData);
+      });
+    });
+  }
+
+  ///Queries all questions and adds them to the question list.
+  Future<void> queryAllQuestions() async {
+    await FirebaseDatabase.instance.ref().child("Questions").once().
+    then((result) {
+      var info = result.snapshot.value as Map;
+      addAllQuestions(info);
+    }).catchError((error) {
+      print("could not get question info $error");
+    });
+  }
+
+  ///Gets all questions with a similarity score to the filter over zero. Occurs only when a filter is nonempty.
+  Future<void> queryWithFilter() async {
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$filter";
+    final uri = Uri.parse(url);
+    final response = await http.get(uri);
+    var responseData = json.decode(response.body);
+    print(responseData);
+    for (int i = 0; i < responseData.length; i++) {
+      Question questionToAdd = await getQuestionInfo(responseData[i].toString());
+      setState(() {
+        questions.add(questionToAdd);
+      });
+    }
+  }
+
+  ///Updates the questions list by referencing the Firebase Realtime Database.
   Future<void> getQuestions() async {
     questions = [];
     if (filter.isEmpty) {
-      await FirebaseDatabase.instance.ref().child("Questions").once().
-      then((result) {
-        var info = result.snapshot.value as Map;
-        setState(() {
-          info.forEach((key, value) async {
-            Question q;
-            q = Question(value["time"].toString(), value["title"], value["content"], value["author"], value["uuid"], value["subject"]);
-            if (value["author"].toString().compareTo(getUID()) != 0) {
-              //if (filter.isEmpty) {
-              questions.add(q);
-              // } else if (q.title.contains(filter)){
-              //   questions.add(q);
-              // }
-            }
-          });
-        });
-      }).catchError((error) {
-        print("could not get question info " + error.toString());
-      });
+      await queryAllQuestions();
     } else {
-      String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/" + filter;
-      final uri = Uri.parse(url);
-      final response = await http.get(uri);
-      var responseData = json.decode(response.body);
-      print(responseData);
-      for (int i = 0; i < responseData.length; i++) {
-        Question questionToAdd = await getQuestionInfo(responseData[i].toString());
-        setState(() {
-          questions.add(questionToAdd);
-        });
-      }
+      await queryWithFilter();
     }
   }
-  
-  Future<void> getQuestionProfilePics() async {
-    await FirebaseDatabase.instance.ref().child("Questions").once().
-    then((value) {
-      var info = value.snapshot.value as Map;
+
+  ///Determines if a given question's author has a profile picture.
+  ///If it does, locate it in storage and add it to a profile picture list.
+  ///Otherwise, use a placeholder.
+  Future<void> downloadProfilePic(dynamic questionData) async {
+    final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + questionData["author"] + ".png");
+    await profileRef.getDownloadURL().then((value2) async {
+      String url = await profileRef.getDownloadURL();
       setState(() {
-        info.forEach((key, value) async {
-          final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + value["author"] + ".png");
-          await profileRef.getDownloadURL().then((value2) async {
-            String url = await profileRef.getDownloadURL();
-            setState(() {
-              questionProfilePics[value["author"]] = ProfilePicture(
-                name: 'NAME',
-                radius: 20,
-                fontsize: 20,
-                img: url,
-              );
-            });
-          }).catchError((error) {
-            if (mounted) {
-              setState(() {
-                questionProfilePics[value["author"]] = ProfilePicture(
-                  name: 'NAME',
-                  radius: 20,
-                  fontsize: 20,
-                  img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-                );
-              });
-            }
-          });
-        });
+        questionProfilePics[questionData["author"]] = ProfilePicture(
+          name: 'NAME',
+          radius: 20,
+          fontsize: 20,
+          img: url,
+        );
       });
     }).catchError((error) {
-      print("could not get question profile pics " + error.toString());
+      if (mounted) {
+        setState(() {
+          questionProfilePics[questionData["author"]] = const ProfilePicture(
+            name: 'NAME',
+            radius: 20,
+            fontsize: 20,
+            img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+          );
+        });
+      }
+    });
+  }
+
+  ///Grabs the profile picture for all questions in a given [query]
+  Future<void> getProfilePicForQuestions(dynamic query) async {
+    setState(() {
+      query.forEach((questionUUID, questionData) async {
+        await downloadProfilePic(questionData);
+      });
+    });
+  }
+
+  ///Queries all questions in a search result for profile pictures.
+  Future<void> getAllProfilePics() async {
+    await FirebaseDatabase.instance.ref().child("Questions").once().
+    then((value) async {
+      var info = value.snapshot.value as Map;
+      await getProfilePicForQuestions(info);
+    }).catchError((error) {
+      print("could not get question profile pics $error");
     });
   }
 
@@ -130,7 +159,7 @@ class _QuestionsState extends State<Questions> {
         }
       });
     }).catchError((error) {
-      print("could not get interested subjects " + error.toString());
+      print("could not get interested subjects $error");
     });
   }
 
@@ -139,7 +168,7 @@ class _QuestionsState extends State<Questions> {
     await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
     then((value) {
       var info = value.snapshot.value as Map;
-      q = new Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
+      q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
     });
     return q;
   }
@@ -149,7 +178,7 @@ class _QuestionsState extends State<Questions> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Questions"),
+        title: const Text("Questions"),
       ),
       body: Column(
         mainAxisSize: MainAxisSize.min,
@@ -170,21 +199,21 @@ class _QuestionsState extends State<Questions> {
               },
             ),
           ),
-          if (questions.length == 0)
+          if (questions.isEmpty)
             Center(
               child: Container(
-                child: Text(
+                margin: const EdgeInsets.all(100.0),
+                padding: const EdgeInsets.all(5.0),
+                child: const Text(
                   "No Questions",
                   style: TextStyle(
                     fontFamily: "Times New Roman",
                     fontSize: 25,
                   ),
                 ),
-                margin: EdgeInsets.all(100.0),
-                padding: EdgeInsets.all(5.0),
               ),
             ),
-          if (questions.length != 0)
+          if (questions.isNotEmpty)
           Expanded(
             flex: 90,
             child: ListView.builder(
@@ -195,7 +224,7 @@ class _QuestionsState extends State<Questions> {
                   return Column(
                     children: [
                       _buildRow(index),
-                      Divider(),
+                      const Divider(),
                     ],
                   );
                 }
@@ -215,7 +244,7 @@ class _QuestionsState extends State<Questions> {
     String questionSubject = questions[index].subject.toString();
 
     //if (interestedSubjects.contains(questionSubject.toString().toLowerCase())) {
-      return Container(
+      return SizedBox(
         height: 80,
         child: Center(
           child: ListTile(
@@ -227,7 +256,7 @@ class _QuestionsState extends State<Questions> {
                   ),
                 );
               },
-              child: Container(
+              child: SizedBox(
                 child: img,
                 height: 50,
                 width: 50,
@@ -237,7 +266,6 @@ class _QuestionsState extends State<Questions> {
             subtitle: Row(
               children: [
                 Text(date),
-                Text(" "),
                 Text(questions[index].subject),
               ],
             ),
@@ -251,8 +279,5 @@ class _QuestionsState extends State<Questions> {
           ),
         ),
       );
-    // } else {
-    //   return Container();
-    // }
   }
 }
