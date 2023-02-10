@@ -91,7 +91,7 @@ class _QuestionsState extends State<Questions> {
   Future<void> getQuestions() async {
     questions = [];
     if (filter.isEmpty) {
-      await queryAllQuestions();
+      await queryWithRecommendation();
     } else {
       await queryWithFilter();
     }
@@ -175,6 +175,74 @@ class _QuestionsState extends State<Questions> {
     });
     return q;
   }
+
+  ///Gets the title & content of the most recent question the user has asked
+  Future<String> getMostRecentlyUploadedQuestion() async {
+    int largestTimeStamp = 0;
+    String mostRecentQuestionContent = "";
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      info.forEach((qUUID, sameAsKey) async {
+        await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + qUUID).once().
+        then((value) {
+          var info2 = value.snapshot.value as Map; //error
+          int timeStamp = info2["time"];
+          if (timeStamp > largestTimeStamp) {
+            largestTimeStamp = timeStamp;
+            mostRecentQuestionContent = info2["title"] + " " + info2["content"];
+            print(mostRecentQuestionContent.substring(0, 20));
+          }
+        }).catchError((error){
+          print("could not get time stamp " + error.toString());
+        });
+      });
+    }).catchError((error) {
+      print("could not get most recent time stamp " + error.toString());
+    });
+    return mostRecentQuestionContent;
+  }
+
+  ///Gets the title & content of the most recently commented on question of the user
+  Future<String> getMostRecentlyCommentedOnQuestion() async {
+    String mostRecentQuestionCommentContent = "";
+    int mostRecentTimeStamp = 0;
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      info.forEach((key, value) async { 
+        if (value > mostRecentTimeStamp) {
+          mostRecentTimeStamp = value;
+          await FirebaseDatabase.instance.ref().child("Questions").child(key).once().
+          then((value) {
+            var info2 = value.snapshot.value as Map;
+            mostRecentQuestionCommentContent = info2["title"] + " " + info2["content"];
+          }).catchError((error) {
+            print("could not get most recent question info " + error.toString());
+          });
+        }
+      });
+    }).catchError((error) {
+      print("could not get most recently commented on question " + error.toString());
+    });
+    return mostRecentQuestionCommentContent;
+  }
+
+  ///Makes a query for the user based on their most recently asked question or comment.
+  Future<void> queryWithRecommendation() async {
+    String mostRecentQuestionAndAnswer = await getMostRecentlyUploadedQuestion() + " " + await getMostRecentlyCommentedOnQuestion();
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$mostRecentQuestionAndAnswer";
+    final uri = Uri.parse(url);
+    final response = await http.get(uri);
+    var responseData = json.decode(response.body);
+    print("RESPONSE DATA: " + responseData.toString());
+    for (int i = 0; i < responseData.length; i++) {
+      Question questionToAdd = await getQuestionInfo(responseData[i].toString());
+      setState(() {
+        questions.add(questionToAdd);
+      });
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -186,21 +254,18 @@ class _QuestionsState extends State<Questions> {
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            flex:10,
-            child: OutlineSearchBar(
-              textEditingController: searchController,
-              hintText: "Search",
-              onClearButtonPressed: (value) {
-                searchController.clear();
-              },
-              onSearchButtonPressed: (value) {
-                setState(() {
-                  filter = value.toString();
-                  getQuestions();
-                });
-              },
-            ),
+          OutlineSearchBar(
+            textEditingController: searchController,
+            hintText: "Search",
+            onClearButtonPressed: (value) {
+              searchController.clear();
+            },
+            onSearchButtonPressed: (value) {
+              setState(() {
+                filter = value.toString();
+                getQuestions();
+              });
+            },
           ),
           if (questions.isEmpty)
             Center(
