@@ -214,6 +214,7 @@ class _ProfileState extends State<Profile> {
   ///Occurs when a user taps on the create question button.
   Future<void> createQuestion() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    String subject = await getQuestionSubject(titleController.text, contentController.text);
     String uuid = questionUUID.v4();
     
     await FirebaseDatabase.instance.ref().child("Questions").child("${getUID()}+$uuid").set(
@@ -224,12 +225,13 @@ class _ProfileState extends State<Profile> {
           "comments": comments,
           "title": titleController.text,
           "uuid": uuid,
-          "subject": await getQuestionSubject(titleController.text, contentController.text),
+          "subject": subject
         }
     ).then((value) async {
       print("Successfully uploaded question");
       
       await updateRecordsWithQuestion(uuid);
+      await sendNotification(titleController.text, contentController.text, subject);
       clearTextControllers();
     }).catchError((onError){
       print("Could not upload question$onError");
