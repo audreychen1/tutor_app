@@ -39,6 +39,8 @@ class _ProfileState extends State<Profile> {
   String name = "";
   String grade = "";
   int numQuestionsAsked = 0;
+  int numQuestionsAnswered = 0;
+  int numQuestionsAnsweredCorrectly = 0;
   //List<String> questionSubject = [];
   List<dynamic> subjects = [];
   List<String> comments = [];
@@ -70,11 +72,10 @@ class _ProfileState extends State<Profile> {
     });
   }
 
-
-
   _ProfileState() {
     getProfileInfo();
     getComments();
+    getNumQuestionsAndAnswers();
   }
 
   Future<void> getProfileInfo() async {
@@ -206,75 +207,19 @@ class _ProfileState extends State<Profile> {
       }
     }
   }
-
-  void showQuestionDialog(BuildContext context) {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text("New Question"),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Title",
-                    ),
-                  ),
-                  TextField(
-                    controller: contentController,
-                    minLines: 3,
-                    maxLines: null,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Content",
-                    ),
-                  ),
-                  if (uploadQuestionPicture || takeQuestionPicture)
-                    Text(uploadedPicFile.path),
-                ],
-              ),
-            ),
-            actions: [
-              ElevatedButton(
-                  onPressed: () {
-                    if (titleController.text.isNotEmpty && contentController.text.isNotEmpty)
-                      createQuestion().then((value) {
-                        Navigator.pop(context);
-                      });
-                    setState(() {
-                      numQuestionsAsked = numQuestionsAsked + 1;
-                    });
-                  },
-                  child: Text("Upload"),
-              ),
-              FloatingActionButton(
-                onPressed: () {
-                  takeQuestionPic();
-                },
-                child: Icon(Icons.camera_alt_outlined),
-                tooltip: "Take Picture",
-              ),
-              FloatingActionButton(
-                onPressed: () {
-                  uploadQuestionPic();
-                },
-                child: Icon(Icons.photo),
-                tooltip: "Upload Picture",
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text("Cancel"),
-              ),
-            ],
-          );
-        }
-        );
+  
+  Future<void> getNumQuestionsAndAnswers() async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      setState(() {
+        numQuestionsAsked = info["questions asked"].length;
+        numQuestionsAnswered = info["answers"].length;
+        numQuestionsAnsweredCorrectly = info["correct answers"].length;
+      });
+    }).catchError((error) {
+      print("could not get this info " + error.toString());
+    });
   }
 
   Future<void> uploadProfilePic() async {
@@ -298,40 +243,6 @@ class _ProfileState extends State<Profile> {
       print("couldn't upload pciutre" + e.toString());
     }
   }
-  
-  Future<void> uploadQuestionPic() async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    questionPicTime = timeStamp;
-    final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
-    final ImagePicker questionImagePicker = ImagePicker();
-    XFile? xFile = await questionImagePicker.pickImage(
-        source: ImageSource.gallery,
-    );
-    File f = File(xFile!.path);
-    uploadedPicProfileRef = profileRef;
-    uploadedPicFile = f;
-    if (uploadedPicFile != null) {
-      uploadQuestionPicture = true;
-    }
-  }
-
-  Future<void> takeQuestionPic() async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    questionPicTime = timeStamp;
-    final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
-    final ImagePicker questionImagePicker = ImagePicker();
-    XFile? xFile = await questionImagePicker.pickImage(
-      source: ImageSource.camera,
-    );
-    File f = File(xFile!.path);
-    uploadedPicProfileRef = profileRef;
-    uploadedPicFile = f;
-    if (uploadedPicFile != null) {
-      takeQuestionPicture = true;
-    }
-  }
 
   Scaffold profileUI() {
     if (subjects.isNotEmpty) {
@@ -344,18 +255,17 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+        elevation: 6,
         leading: Builder(builder: (context) =>
             IconButton(
               icon: Icon(Icons.settings),
               onPressed: () {
                 Scaffold.of(context).openDrawer();
               },
-              color: Colors.grey,
+              color: Colors.black,
             ),
         ),
-        //backgroundColor: Colors.transparent,
+        backgroundColor: Color.fromRGBO(82, 121, 111, 1),
         title: Text(
             name,
           style: GoogleFonts.workSans(
@@ -369,33 +279,22 @@ class _ProfileState extends State<Profile> {
       ),
       body: Column(
         children: [
-          Placeholder(
-            fallbackHeight: 20,
-            color: Colors.transparent,
-          ),
           Expanded(
               flex: 20,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(6.0),
                     child: Container(
-                      height: MediaQuery.of(context).size.width * 0.2,
-                      width: MediaQuery.of(context).size.width * 0.2,
+                      height: MediaQuery.of(context).size.width * 0.25,
+                      width: MediaQuery.of(context).size.width * 0.25,
                       child: img,
                     ),
                   ),
-                  Placeholder(
-                    fallbackWidth: 20,
-                    color: Colors.transparent,
-                  ),
                   Column(
                     children: [
-                      Placeholder(
-                        fallbackHeight: 45,
-                        fallbackWidth: 20,
-                        color: Colors.transparent,
-                      ),
                       Row(
                         children: [
                           Column(
@@ -418,11 +317,6 @@ class _ProfileState extends State<Profile> {
                                 ),
                               ),
                             ],
-                          ),
-                          Placeholder(
-                            fallbackWidth: 20,
-                            fallbackHeight: 20,
-                            color: Colors.transparent,
                           ),
                           Column(
                             children: [
@@ -456,101 +350,161 @@ class _ProfileState extends State<Profile> {
             flex: 75,
             child: Column(
               children: [
-                const ListTile(
-                  title: Text(
-                      "Volunteer Hours",
-                    style: TextStyle(
-                      fontSize: 20,
+                Row(
+                  children: [
+                    Expanded(flex: 15, child: Container()),
+                    Expanded(
+                      flex: 85,
+                      child: ListTile(
+                        title: const Text(
+                          "Volunteer Hours",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color.fromRGBO(163, 163, 163, 1),
+                          ),
+                        ),
+                        subtitle: Text(
+                          "5",
+                          style: TextStyle(
+                            fontSize: 21,
+                            color: Colors.black,
+                          ),
+                        ),
+                        leading: IconButton(
+                          icon: const Icon(Icons.volunteer_activism),
+                          onPressed: (){},
+                          color: Color.fromRGBO(224, 224, 221, 1),
+                        ),
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                      "5",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.volunteer_activism),
+                  ],
                 ),
-                ListTile(
-                  title: const Text(
-                      "Subjects",
-                    style: TextStyle(
-                      fontSize: 20,
+                Row(
+                  children: [
+                    Expanded(child: Container(), flex: 15),
+                    Expanded(
+                      flex: 85,
+                      child: ListTile(
+                        title: const Text(
+                          "Interests",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color.fromRGBO(163, 163, 163, 1),
+                          ),
+                        ),
+                        subtitle: Text(
+                          displaySubjects,
+                          style: TextStyle(
+                            fontSize: 21,
+                            color: Colors.black,
+                          ),
+                        ),
+                        leading: IconButton(
+                          icon: const Icon(Icons.menu_book_sharp),
+                          onPressed: (){},
+                          color: Color.fromRGBO(167, 190, 169, 1),
+                        ),
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                      displaySubjects,
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.menu_book_sharp),
+                  ],
                 ),
-                const ListTile(
-                  title: Text(
-                      "Questions Asked",
-                    style: TextStyle(
-                      fontSize: 20,
+                Row(
+                  children: [
+                    Expanded(child: Container(), flex: 15),
+                    Expanded(
+                      flex: 85,
+                      child: ListTile(
+                        title: const Text(
+                          "Questions Asked",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color.fromRGBO(163, 163, 163, 1),
+                          ),
+                        ),
+                        subtitle: Text(
+                          numQuestionsAsked.toString(),
+                          style: TextStyle(
+                            fontSize: 21,
+                            color: Colors.black,
+                          ),
+                        ),
+                        leading: IconButton(
+                          icon: const Icon(Icons.question_mark_sharp),
+                          onPressed: (){},
+                          color: Color.fromRGBO(132, 169, 140, 1),
+                        ),
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                      "0",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.question_mark_sharp),
+                  ],
                 ),
-                const ListTile(
-                  title: Text(
-                    "Questions Answered",
-                    style: TextStyle(
-                      fontSize: 20,
+                Row(
+                  children: [
+                    Expanded(child: Container(), flex: 15),
+                    Expanded(
+                      flex: 85,
+                      child: ListTile(
+                        title: const Text(
+                          "Questions Answered",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color.fromRGBO(163, 163, 163, 1),
+                          ),
+                        ),
+                        subtitle: Text(
+                          numQuestionsAnswered.toString(),
+                          style: TextStyle(
+                            fontSize: 21,
+                            color: Colors.black,
+                          ),
+                        ),
+                        leading: IconButton(
+                          icon: const Icon(Icons.question_answer),
+                          onPressed: (){},
+                          color: Color.fromRGBO(82, 121, 111, 1),
+                        ),
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    "0",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.question_answer_outlined),
+                  ],
                 ),
-                const ListTile(
-                  title: Text(
-                    "Questions Answered Correctly",
-                    style: TextStyle(
-                      fontSize: 20,
+                Row(
+                  children: [
+                    Expanded(child: Container(), flex: 15),
+                    Expanded(
+                      flex: 85,
+                      child: ListTile(
+                        title: const Text(
+                          "Correct Answers",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color.fromRGBO(163, 163, 163, 1),
+                          ),
+                        ),
+                        subtitle: Text(
+                          numQuestionsAnsweredCorrectly.toString(),
+                          style: TextStyle(
+                            fontSize: 21,
+                            color: Colors.black,
+                          ),
+                        ),
+                        leading: IconButton(
+                          icon: const Icon(Icons.check),
+                          onPressed: (){},
+                          color: Color.fromRGBO(53, 79, 82, 1),
+                        ),
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    "0",
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                  leading: Icon(Icons.check),
+                  ],
                 ),
               ],
             ),
           ),
-
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            showQuestionDialog(context);
-          },
-          child: Icon(
-              Icons.add,
-          ),
-        tooltip: "New Question",
       ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.all(8),
           children: [
-            SizedBox(
+            const SizedBox(
               height: 100,
               child: DrawerHeader(
                 child: Text("Settings"),
@@ -597,6 +551,8 @@ class _ProfileState extends State<Profile> {
   Widget build(BuildContext context) {
     return Scaffold (
       bottomNavigationBar: NavigationBar(
+        height: 65,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         onDestinationSelected: (int index) {
           setState(() {
             currentPageIndex = index;
@@ -626,4 +582,49 @@ class _ProfileState extends State<Profile> {
       ] [currentPageIndex],
     );
   }
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   PageController _pageController = PageController(initialPage: 0);
+  //   return Scaffold(
+  //     body: PageView(
+  //       controller: _pageController,
+  //       onPageChanged: (newIndex) {
+  //         setState(() {
+  //           currentPageIndex = newIndex;
+  //         });
+  //       },
+  //       children: [
+  //         Questions(),
+  //         profileUI(),
+  //         History(),
+  //       ],
+  //     ),
+  //     bottomNavigationBar: BottomNavigationBar(
+  //       currentIndex: currentPageIndex,
+  //       onTap: (index) {
+  //         setState(() {
+  //           _pageController.animateToPage(index, duration: Duration(milliseconds: 500), curve: Curves.ease);
+  //         });
+  //       },
+  //       showUnselectedLabels: false,
+  //       iconSize: 24,
+  //       backgroundColor: Colors.white60,
+  //       items: const [
+  //         BottomNavigationBarItem(
+  //           icon: Icon(Icons.question_mark_sharp),
+  //           label: "Questions",
+  //         ),
+  //         BottomNavigationBarItem(
+  //           icon: Icon(Icons.person),
+  //           label: "Profile",
+  //         ),
+  //         BottomNavigationBarItem(
+  //           icon: Icon(Icons.history),
+  //           label: "History",
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 }

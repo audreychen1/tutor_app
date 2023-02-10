@@ -2,8 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:multiselect/multiselect.dart';
 import 'package:tutor_app/helper.dart';
+import 'package:tutor_app/login.dart';
 import 'package:tutor_app/profile.dart';
 
 import 'ask_question.dart';
@@ -50,62 +52,130 @@ class _SignupState extends State<Signup> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Sign Up"),
-      ),
-      body: Column(
-        children: [
-          TextField(
-            controller: emailController,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: "Email",
+      body: Padding(
+        padding: EdgeInsets.only(top: 100),
+        child: Column(
+          children: [
+            Padding(padding: EdgeInsets.only(bottom: 15.0), child: Text("Signup", style: GoogleFonts.notoSans(textStyle: TextStyle(fontSize: 30,)),)),
+            Padding(
+              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  //borderRadius: BorderRadius.circular(10.0),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                  ],
+                ),
+                child: TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: "Email",
+                  ),
+                ),
+              ),
             ),
-          ),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: "Password",
+            Padding(
+              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+              child: TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Password",
+                ),
+              ),
             ),
-          ),
-          TextField(
-            controller: nameController,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: "Name",
+            Padding(
+              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+              child: TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Name",
+                ),
+              ),
             ),
-          ),
-          TextField(
-            controller: gradeController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: "Grade",
+            Padding(
+              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+              child: TextField(
+                controller: gradeController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Grade",
+                ),
+              ),
             ),
-          ),
-          DropDownMultiSelect(
-              whenEmpty: "Subjects",
-              options: ["Math", "Science", "Language", "History", "English"],
-              selectedValues: subjects,
-              onChanged: (List<String> x) {
-                setState(() {
-                  subjects  = x;
-                  //messaging.subscribeToTopic
-                  subjects.forEach((element) {
-                    FirebaseMessaging.instance.subscribeToTopic(element);
-                  });
-                });
-              }
-          ),
-          ElevatedButton(
-            onPressed: () {
-              signUpUser();
-            },
-            child: Text("Sign Up"),
-          ),
-        ],
+            Padding(
+              padding: EdgeInsets.only(left: 15.0, right: 15.0),
+              child: DropDownMultiSelect(
+                  whenEmpty: "Subjects",
+                  options: ["Math", "Science", "Language", "History", "English"],
+                  selectedValues: subjects,
+                  onChanged: (List<String> x) {
+                    setState(() {
+                      subjects  = x;
+                      //messaging.subscribeToTopic
+                      subjects.forEach((element) {
+                        FirebaseMessaging.instance.subscribeToTopic(element);
+                      });
+                    });
+                  }
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+              child: GestureDetector(
+                onTap: () {
+                  signUpUser();
+                },
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10.0),
+                    gradient: LinearGradient(
+                      colors: [
+                        Color.fromRGBO(132, 169, 140, 1),
+                        Color.fromRGBO(202, 210, 197, 1),
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text("Signup"),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => Login()),
+                  );
+                },
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10.0),
+                    gradient: LinearGradient(
+                      colors: [
+                        Color.fromRGBO(132, 169, 140, 1),
+                        Color.fromRGBO(202, 210, 197, 1),
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text("Login"),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
