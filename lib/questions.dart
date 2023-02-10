@@ -41,6 +41,7 @@ class _QuestionsState extends State<Questions> {
 
   _QuestionsState() {
     getQuestions().then((value) => getAllProfilePics());
+    getUserSubjects();
   }
 
   ///Adds data from a specific question to a Question object and adds it to the question list.
@@ -145,6 +146,7 @@ class _QuestionsState extends State<Questions> {
     });
   }
 
+  ///Appends the names of all subjects the user is interested in to the interestedSubjects list.
   Future<void> getUserSubjects() async {
     await FirebaseDatabase.instance.ref().child("User").child(getUID()).once().
     then((value2) {
@@ -163,6 +165,7 @@ class _QuestionsState extends State<Questions> {
     });
   }
 
+  ///Given a [questionUUID], return an object of type Question containing all relevant information.
   Future<Question> getQuestionInfo(String questionUUID) async {
     var q;
     await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
@@ -240,7 +243,6 @@ class _QuestionsState extends State<Questions> {
     String date = DateFormat('y/M/d   kk:mm').format(dt);
     String questionAuthorUID = questions[index].author;
     var img = questionProfilePics[questionAuthorUID];
-    getUserSubjects();
     String questionSubject = questions[index].subject.toString();
 
     //if (interestedSubjects.contains(questionSubject.toString().toLowerCase())) {
