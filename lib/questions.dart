@@ -38,6 +38,7 @@ class _QuestionsState extends State<Questions> {
   String filter = "";
   var questionProfilePics = Map();
   List<String> interestedSubjects = [];
+  String mostRecentlyUploadedQuestion = "";
 
   _QuestionsState() {
     getQuestions().then((value) => getAllProfilePics());
@@ -91,7 +92,8 @@ class _QuestionsState extends State<Questions> {
   Future<void> getQuestions() async {
     questions = [];
     if (filter.isEmpty) {
-      await queryWithRecommendation();
+      await queryAllQuestions();
+      //await queryWithRecommendation();
     } else {
       await queryWithFilter();
     }
@@ -177,9 +179,8 @@ class _QuestionsState extends State<Questions> {
   }
 
   ///Gets the title & content of the most recent question the user has asked
-  Future<String> getMostRecentlyUploadedQuestion() async {
+  Future<void> getMostRecentlyUploadedQuestion() async {
     int largestTimeStamp = 0;
-    String mostRecentQuestionContent = "";
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").once().
     then((value) {
       var info = value.snapshot.value as Map;
@@ -190,8 +191,10 @@ class _QuestionsState extends State<Questions> {
           int timeStamp = info2["time"];
           if (timeStamp > largestTimeStamp) {
             largestTimeStamp = timeStamp;
-            mostRecentQuestionContent = info2["title"] + " " + info2["content"];
-            print(mostRecentQuestionContent.substring(0, 20));
+            setState(() {
+              mostRecentlyUploadedQuestion = info2["title"] + " " + info2["content"];
+              print(mostRecentlyUploadedQuestion);
+            });
           }
         }).catchError((error){
           print("could not get time stamp " + error.toString());
@@ -200,7 +203,6 @@ class _QuestionsState extends State<Questions> {
     }).catchError((error) {
       print("could not get most recent time stamp " + error.toString());
     });
-    return mostRecentQuestionContent;
   }
 
   ///Gets the title & content of the most recently commented on question of the user
@@ -230,7 +232,8 @@ class _QuestionsState extends State<Questions> {
 
   ///Makes a query for the user based on their most recently asked question or comment.
   Future<void> queryWithRecommendation() async {
-    String mostRecentQuestionAndAnswer = await getMostRecentlyUploadedQuestion() + " " + await getMostRecentlyCommentedOnQuestion();
+    await getMostRecentlyUploadedQuestion();
+    String mostRecentQuestionAndAnswer = mostRecentlyUploadedQuestion + " " + await getMostRecentlyCommentedOnQuestion();
     String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$mostRecentQuestionAndAnswer";
     final uri = Uri.parse(url);
     final response = await http.get(uri);
