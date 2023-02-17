@@ -9,6 +9,7 @@ import 'package:tutor_app/login.dart';
 import 'package:tutor_app/profile.dart';
 
 import 'ask_question.dart';
+import 'login.dart';
 
 class Signup extends StatefulWidget {
   const Signup({Key? key}) : super(key: key);
@@ -99,80 +100,117 @@ class _SignupState extends State<Signup> {
             ),
             Padding(
               padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
-              child: TextField(
-                controller: gradeController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: "Grade",
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10.0),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                  ],
+                ),
+                child: TextField(
+                  controller: gradeController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: "Grade",
+                  ),
                 ),
               ),
             ),
             Padding(
               padding: EdgeInsets.only(left: 15.0, right: 15.0),
-              child: DropDownMultiSelect(
-                  whenEmpty: "Subjects",
-                  options: ["Math", "Science", "Language", "History", "English"],
-                  selectedValues: subjects,
-                  onChanged: (List<String> x) {
-                    setState(() {
-                      subjects  = x;
-                      //messaging.subscribeToTopic
-                      subjects.forEach((element) {
-                        FirebaseMessaging.instance.subscribeToTopic(element);
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10.0),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                  ],
+                ),
+                child: DropDownMultiSelect(
+                    whenEmpty: "Subjects",
+                    options: ["Math", "Science", "Language", "History", "English"],
+                    selectedValues: subjects,
+                    onChanged: (List<String> x) {
+                      setState(() {
+                        subjects  = x;
+                        //messaging.subscribeToTopic
+                        subjects.forEach((element) {
+                          FirebaseMessaging.instance.subscribeToTopic(element);
+                        });
                       });
-                    });
-                  }
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
-              child: GestureDetector(
-                onTap: () {
-                  signUpUser();
-                },
-                child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(132, 169, 140, 1),
-                        Color.fromRGBO(202, 210, 197, 1),
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text("Signup"),
-                  ),
+                    }
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => Login()),
-                  );
-                },
-                child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(132, 169, 140, 1),
-                        Color.fromRGBO(202, 210, 197, 1),
-                      ],
+            Stack(
+              children: [
+                Positioned(
+                  child: Container(
+                    height: 300,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/signup_banner.png'),
+                        fit: BoxFit.fill,
+                      ),
                     ),
                   ),
-                  child: Center(
-                    child: Text("Login"),
-                  ),
                 ),
-              ),
+                Column(
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(top: 20.0, left: 15.0, right: 15.0),
+                      child: GestureDetector(
+                        onTap: () {
+                          signUpUser();
+                        },
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10.0),
+                            gradient: LinearGradient(
+                              colors: [
+                                Color.fromRGBO(132, 169, 140, 1),
+                                Color.fromRGBO(202, 210, 197, 1),
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Text("Signup"),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => Login()),
+                          );
+                        },
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10.0),
+                            gradient: LinearGradient(
+                              colors: [
+                                Color.fromRGBO(132, 169, 140, 1),
+                                Color.fromRGBO(202, 210, 197, 1),
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Text("Login"),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),

@@ -83,7 +83,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       print("could not get this info " + error.toString());
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (subjects.isNotEmpty) {
@@ -96,7 +96,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-            name,
+          name,
           style: GoogleFonts.notoSans(
             textStyle: TextStyle(
               fontSize: 29,

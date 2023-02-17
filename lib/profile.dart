@@ -74,7 +74,7 @@ class _ProfileState extends State<Profile> {
 
   _ProfileState() {
     getProfileInfo();
-    getComments();
+    //getScore();
     getNumQuestionsAndAnswers();
   }
 
@@ -149,79 +149,7 @@ class _ProfileState extends State<Profile> {
     });
   }
 
-  Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
-    String combined = questionTitle + " " + questionDescription;
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/" + combined;
-    final uri = Uri.parse(url);
-    final response = await http.get(uri);
-    var responseData = json.decode(response.body);
-    print(responseData);
-    return responseData;
-  }
-
-  Future<void> createQuestion() async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    String uuid = questionUUID.v4();
-    await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).set(
-        {
-          "time": timeStamp,
-          "content": contentController.text,
-          "author": getUID(),
-          "comments": comments,
-          "title": titleController.text,
-          "uuid": uuid,
-          "subject": await getQuestionSubject(titleController.text, contentController.text),
-        }
-    ).then((value) async {
-      print("Successfully uploaded question");
-      await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
-        uuid: uuid,
-      }).
-      then((value) {
-        print("Set up records");
-      }).catchError((onError) {
-        print("Failed to set up records" + onError.toString());
-      });
-
-      setState(() {
-        titleController.text = "";
-        contentController.text = "";
-      });
-    }).catchError((onError){
-      print("Could not upload question" + onError.toString());
-    });
-    //upload picture into firebase
-    if (uploadQuestionPicture || takeQuestionPicture) {
-      try {
-        await uploadedPicProfileRef.putFile(uploadedPicFile);
-        await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).update({
-          "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
-          "uploadedpictime" : questionPicTime,
-        }).then((value) {
-          print("uploaded question pic ");
-        }).catchError((error) {
-          print("not able to upload question pic " + error.toString());
-        });
-      } catch (e) {
-        print("could not upoload question pic " + e.toString());
-      }
-    }
-  }
-  
-  Future<void> getNumQuestionsAndAnswers() async {
-    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).once().
-    then((value) {
-      var info = value.snapshot.value as Map;
-      setState(() {
-        numQuestionsAsked = info["questions asked"].length;
-        numQuestionsAnswered = info["answers"].length;
-        numQuestionsAnsweredCorrectly = info["correct answers"].length;
-      });
-    }).catchError((error) {
-      print("could not get this info " + error.toString());
-    });
-  }
-
+  ///Brings up the user's photo gallery for them to select a picture to use for a profile picture.
   Future<void> uploadProfilePic() async {
     final storageRef = FirebaseStorage.instance.ref();
     final profileRef = storageRef.child("profilePics/" + getUID() + ".png");
@@ -242,6 +170,301 @@ class _ProfileState extends State<Profile> {
     } catch (e) {
       print("couldn't upload pciutre" + e.toString());
     }
+  }
+
+  Future<void> getNumQuestionsAndAnswers() async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      setState(() {
+        numQuestionsAsked = info["questions asked"].length;
+        numQuestionsAnswered = info["answers"].length;
+        numQuestionsAnsweredCorrectly = info["correct answers"].length;
+      });
+    }).catchError((error) {
+      print("could not get this info " + error.toString());
+    });
+  }
+
+  Drawer drawerCode() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.all(8.0),
+        children: [
+          SizedBox(
+            height: 100,
+            child: DrawerHeader(
+              child: Text("Settings"),
+            ),
+          ),
+          ListTile(
+            title: Text("Logout"),
+            onTap: () async {
+              await FirebaseAuth.instance.signOut().then((value) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => Login(),
+                  ),
+                );
+              });
+            },
+            leading: Icon(Icons.logout),
+          ),
+          ListTile(
+            title: Text("Upload Profile Picture"),
+            onTap: () async {
+              await uploadProfilePic();
+            },
+            leading: Icon(Icons.person),
+          ),
+          ListTile(
+            title: Text("Help"),
+            onTap: ()  {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                    builder: (context) => SupportPage(),
+                ),
+              );
+            },
+            leading: Icon(Icons.question_mark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Padding createTopRow() {
+    return Padding(
+      padding: EdgeInsets.only(top: 15.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 47,
+            child: Padding(
+              padding: const EdgeInsets.all(6.0),
+              child: Container(
+                height: MediaQuery.of(context).size.width * 0.25,
+                width: MediaQuery.of(context).size.width * 0.25,
+                child: img,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 53,
+            child: Padding(
+              padding: EdgeInsets.only(top: 20.0, right: 10.0),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(right: 20.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              grade,
+                              style: GoogleFonts.notoSans(
+                                textStyle:TextStyle(
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              "Grade",
+                              style: GoogleFonts.notoSans(
+                                textStyle:TextStyle(
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            userScore.toString(),
+                            style: GoogleFonts.notoSans(
+                              textStyle:TextStyle(
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            "Joined",
+                            style: GoogleFonts.notoSans(
+                              textStyle:TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Column createMiddleColumn() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Volunteer Hours",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  "5",
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.volunteer_activism),
+                  onPressed: (){},
+                  color: Color.fromRGBO(224, 224, 221, 1),
+                ),
+              ),
+            )
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Interests",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  displaySubjects,
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.menu_book_sharp),
+                  onPressed: (){},
+                  color: Color.fromRGBO(167, 190, 169, 1),
+                ),
+              ),
+            )
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Questions Asked",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  numQuestionsAsked.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.question_mark_sharp),
+                  onPressed: (){},
+                  color: Color.fromRGBO(132, 169, 140, 1),
+                ),
+              ),
+            )
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Questions Answered",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  numQuestionsAnswered.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.question_answer),
+                  onPressed: (){},
+                  color: Color.fromRGBO(82, 121, 111, 1),
+                ),
+              ),
+            )
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Correct Answers",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  numQuestionsAnsweredCorrectly.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.check_box_rounded),
+                  onPressed: (){},
+                  color: Color.fromRGBO(53, 79, 82, 1),
+                ),
+              ),
+            )
+          ],
+        ),
+      ],
+    );
   }
 
   Scaffold profileUI() {
@@ -274,274 +497,15 @@ class _ProfileState extends State<Profile> {
               color: Colors.black,
             ),
           ),
+          //leading: Icon(Icons.settings),
         ),
-        //leading: Icon(Icons.settings),
       ),
-      body: Column(
-        children: [
-          Expanded(
-              flex: 20,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(6.0),
-                    child: Container(
-                      height: MediaQuery.of(context).size.width * 0.25,
-                      width: MediaQuery.of(context).size.width * 0.25,
-                      child: img,
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Column(
-                            children: [
-                              Text(
-                                grade,
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 20,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                "Grade",
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 25,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            children: [
-                              Text(
-                                userScore.toString(),
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 20,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                "Joined",
-                                style: GoogleFonts.notoSans(
-                                  textStyle:TextStyle(
-                                    fontSize: 25,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              )
-          ),
-          Expanded(
-            flex: 75,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(flex: 15, child: Container()),
-                    Expanded(
-                      flex: 85,
-                      child: ListTile(
-                        title: const Text(
-                          "Volunteer Hours",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color.fromRGBO(163, 163, 163, 1),
-                          ),
-                        ),
-                        subtitle: Text(
-                          "5",
-                          style: TextStyle(
-                            fontSize: 21,
-                            color: Colors.black,
-                          ),
-                        ),
-                        leading: IconButton(
-                          icon: const Icon(Icons.volunteer_activism),
-                          onPressed: (){},
-                          color: Color.fromRGBO(224, 224, 221, 1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(child: Container(), flex: 15),
-                    Expanded(
-                      flex: 85,
-                      child: ListTile(
-                        title: const Text(
-                          "Interests",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color.fromRGBO(163, 163, 163, 1),
-                          ),
-                        ),
-                        subtitle: Text(
-                          displaySubjects,
-                          style: TextStyle(
-                            fontSize: 21,
-                            color: Colors.black,
-                          ),
-                        ),
-                        leading: IconButton(
-                          icon: const Icon(Icons.menu_book_sharp),
-                          onPressed: (){},
-                          color: Color.fromRGBO(167, 190, 169, 1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(child: Container(), flex: 15),
-                    Expanded(
-                      flex: 85,
-                      child: ListTile(
-                        title: const Text(
-                          "Questions Asked",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color.fromRGBO(163, 163, 163, 1),
-                          ),
-                        ),
-                        subtitle: Text(
-                          numQuestionsAsked.toString(),
-                          style: TextStyle(
-                            fontSize: 21,
-                            color: Colors.black,
-                          ),
-                        ),
-                        leading: IconButton(
-                          icon: const Icon(Icons.question_mark_sharp),
-                          onPressed: (){},
-                          color: Color.fromRGBO(132, 169, 140, 1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(child: Container(), flex: 15),
-                    Expanded(
-                      flex: 85,
-                      child: ListTile(
-                        title: const Text(
-                          "Questions Answered",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color.fromRGBO(163, 163, 163, 1),
-                          ),
-                        ),
-                        subtitle: Text(
-                          numQuestionsAnswered.toString(),
-                          style: TextStyle(
-                            fontSize: 21,
-                            color: Colors.black,
-                          ),
-                        ),
-                        leading: IconButton(
-                          icon: const Icon(Icons.question_answer),
-                          onPressed: (){},
-                          color: Color.fromRGBO(82, 121, 111, 1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(child: Container(), flex: 15),
-                    Expanded(
-                      flex: 85,
-                      child: ListTile(
-                        title: const Text(
-                          "Correct Answers",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color.fromRGBO(163, 163, 163, 1),
-                          ),
-                        ),
-                        subtitle: Text(
-                          numQuestionsAnsweredCorrectly.toString(),
-                          style: TextStyle(
-                            fontSize: 21,
-                            color: Colors.black,
-                          ),
-                        ),
-                        leading: IconButton(
-                          icon: const Icon(Icons.check),
-                          onPressed: (){},
-                          color: Color.fromRGBO(53, 79, 82, 1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.all(8),
+      body: SingleChildScrollView(
+        child: Column(
           children: [
-            const SizedBox(
-              height: 100,
-              child: DrawerHeader(
-                child: Text("Settings"),
-              ),
-            ),
-            ListTile(
-              title: Text("Logout"),
-              onTap: () async{
-                await FirebaseAuth.instance.signOut().then((value) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => Login(),
-                    ),
-                  );
-                });
-              },
-              leading: Icon(Icons.logout),
-            ),
-            ListTile(
-              title: Text("Upload Profile Picture"),
-              onTap: () async {
-                await uploadProfilePic();
-              },
-              leading: Icon(Icons.person),
-            ),
-            ListTile(
-              title: Text("Help"),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => SupportPage(),
-                  ),
-                );
-              },
-              leading: Icon(Icons.question_mark),
-            ),
-          ],
+            createTopRow(),
+            createMiddleColumn(),
+          ]
         ),
       ),
     );

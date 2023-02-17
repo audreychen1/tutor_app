@@ -157,16 +157,6 @@ class _QuestionsState extends State<Questions> {
     return q;
   }
 
-  Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
-    String combined = questionTitle + " " + questionDescription;
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/" + combined;
-    final uri = Uri.parse(url);
-    final response = await http.get(uri);
-    var responseData = json.decode(response.body);
-    print(responseData);
-    return responseData;
-  }
-
   Future<void> createQuestion() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     String uuid = questionUUID.v4();
@@ -217,6 +207,86 @@ class _QuestionsState extends State<Questions> {
     }
   }
 
+  ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post.
+  Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
+    String combined = questionTitle + " " + questionDescription;
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/" + combined;
+    final uri = Uri.parse(url);
+    final response = await http.get(uri);
+    var responseData = json.decode(response.body);
+    print(responseData);
+    return responseData;
+  }
+
+  ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post
+  ///with a given [topic].
+  Future<void> sendNotification(String questionTitle, String questionDescription, String topic) async {
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/notify/$questionTitle/$questionDescription/$topic";
+    final uri = Uri.parse(url);
+    await http.get(uri);
+  }
+
+  ///Adds the [uuid] of a recently made question to the user's records.
+  Future<void> updateRecordsWithQuestion(String uuid) async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
+      uuid: uuid,
+    }).
+    then((value) {
+      print("Set up records");
+    }).catchError((onError) {
+      print("Failed to set up records$onError");
+    });
+  }
+
+  void clearTextControllers() {
+    setState(() {
+      titleController.text = "";
+      contentController.text = "";
+    });
+  }
+
+  ///Uploads a picture, if the user chose to.
+  Future<void> uploadPictureForQuestion(String uuid) async {
+    if (uploadQuestionPicture || takeQuestionPicture) {
+      try {
+        await uploadedPicProfileRef.putFile(uploadedPicFile);
+        await FirebaseDatabase.instance.ref().child("Questions").child("${getUID()}+$uuid").update({
+          "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
+          "uploadedpictime" : questionPicTime,
+        }).then((value) {
+          print("uploaded question pic ");
+        }).catchError((error) {
+          print("not able to upload question pic $error");
+        });
+      } catch (e) {
+        print("could not upload question pic $e");
+      }
+    }
+  }
+
+  //doesnt work
+  Future<void> viewQuestion(String questionUUID) async {
+    int views = 0;
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      views = info["views"];
+    }).catchError((error) {
+      print("could not get num views " + error.toString());
+    });
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once(
+    ).then((value) {
+      var info = value.snapshot.value as Map;
+      setState(() {
+        info["views"] = info["views"] + 1;
+      });
+      print("updated num views");
+    }).catchError((error) {
+      print("could not update num views " + error.toString());
+    });
+  }
+
+  ///Displays a pop up showing the form data for creating a new question.
   void showQuestionDialog(BuildContext context) {
     showDialog(
         context: context,
@@ -310,6 +380,7 @@ class _QuestionsState extends State<Questions> {
     );
   }
 
+  ///Brings up the user's photo gallery for them to select a picture to use for a question.
   Future<void> uploadQuestionPic() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
@@ -327,6 +398,7 @@ class _QuestionsState extends State<Questions> {
     }
   }
 
+  ///Brings up the user's camera for them to use for a question.
   Future<void> takeQuestionPic() async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
@@ -344,28 +416,6 @@ class _QuestionsState extends State<Questions> {
     }
   }
 
-  //doesnt work
-  Future<void> viewQuestion(String questionUUID) async {
-    int views = 0;
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
-    then((value) {
-      var info = value.snapshot.value as Map;
-      views = info["views"];
-    }).catchError((error) {
-      print("could not get num views " + error.toString());
-    });
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once(
-    ).then((value) {
-      var info = value.snapshot.value as Map;
-      setState(() {
-        info["views"] = info["views"] + 1;
-      });
-      print("updated num views");
-    }).catchError((error) {
-      print("could not update num views " + error.toString());
-    });
-  }
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -392,7 +442,6 @@ class _QuestionsState extends State<Questions> {
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          //Expanded(child: Container(), flex: 3,),
           Padding(
             padding: EdgeInsets.all(11.0),
             child: OutlineSearchBar(
@@ -462,7 +511,7 @@ class _QuestionsState extends State<Questions> {
         tooltip: "New Question",
         backgroundColor: Color.fromRGBO(132, 169, 140, 1),
       ),
-      );
+    );
   }
 
   Widget _buildRow(int index) {
@@ -511,8 +560,8 @@ class _QuestionsState extends State<Questions> {
                 ),
                 Row(
                   children: [//60 40 40
-                    Expanded(flex: 40, child: Container()),
-                    Expanded(flex: 20, child: TextButton(
+                    Expanded(flex: 50, child: Container()),
+                    Expanded(flex: 11, child: TextButton(
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -522,29 +571,26 @@ class _QuestionsState extends State<Questions> {
                       },
                       child: Container(
                         child: img,
-                        height: 25,
-                        width: 25,
+                        height: 20,
+                        width: 20,
                       ),
                     ),),
                     Expanded(flex: 20, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
-                    Expanded(flex: 20, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
+                    Expanded(flex: 10, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
                   ],
                 ),
-              ],
-            ),
-            onTap: () {
-              viewQuestion(questions[index].author + "+" + questions[index].uuid);
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => QuestionsPage(q: questions[index]),
-                ),
-              );
-            },
+            ],
           ),
-        ),
+          onTap: () {
+            viewQuestion(questions[index].author + "+" + questions[index].uuid);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => QuestionsPage(q: questions[index]),
+              ),
+            );
+          },
+         ),
+       ),
       );
-    // } else {
-    //   return Container();
-    // }
   }
 }

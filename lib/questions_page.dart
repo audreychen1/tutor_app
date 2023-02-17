@@ -49,12 +49,12 @@ class _QuestionsPageState extends State<QuestionsPage> {
   var questionPic;
   bool replyButtonClicked = false;
   String repliedComment = "";
-  var upPressed;
-  //
+  var upPressedList = new Map();
   var uploadedPicFile;
   var questionPicTime;
-  bool uploadQuestionPicture = false;
-  bool takeQuestionPicture = false;
+  bool uploadedCommentPicture = false;
+  bool tookCommentPicture = false;
+  var commentPicRefs = new Map();
   var uploadedPicProfileRef;
 
   _QuestionsPageState() {
@@ -225,10 +225,10 @@ class _QuestionsPageState extends State<QuestionsPage> {
         commentsController.clear();
       });
       //add pics for comments
-      if (uploadQuestionPicture || takeQuestionPicture) {
+      if (uploadedCommentPicture || tookCommentPicture) {
         try {
           await uploadedPicProfileRef.putFile(uploadedPicFile);
-          await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
+          await FirebaseDatabase.instance.ref().child("Questions").child(authorUID + "+" + question.uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
             "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
             "uploadedpictime" : questionPicTime,
           }).then((value) {
@@ -239,6 +239,12 @@ class _QuestionsPageState extends State<QuestionsPage> {
         } catch (e) {
           print("could not upoload comment pic " + e.toString());
         }
+        final picRef = FirebaseStorage.instance.ref().child("commentPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+        await picRef.getDownloadURL().then((value) {
+          commentPicRefs[getUID() + "+" + timeStamp.toString()] = Image.network(value);
+        }).catchError((error) {
+          print("could not get comment pic profile ref " + error.toString());
+        });
       }
     }).catchError((error) {
       print("could not add comment " + error.toString());
@@ -292,7 +298,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     }).catchError((onError) {
       print(onError.toString());
     });
-    
+
     await FirebaseDatabase.instance.ref().child("Records").child(c.UID).child("correct answers").update({
       widget.q.uuid : widget.q.uuid,
     }).then((value) {
@@ -326,7 +332,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final profileRef = storageRef.child("commentPics/" + getUID() + "+" + timeStamp.toString() + ".png");
     final ImagePicker questionImagePicker = ImagePicker();
     XFile? xFile = await questionImagePicker.pickImage(
       source: ImageSource.gallery,
@@ -335,7 +341,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     uploadedPicProfileRef = profileRef;
     uploadedPicFile = f;
     if (uploadedPicFile != null) {
-      uploadQuestionPicture = true;
+      uploadedCommentPicture = true;
     }
   }
 
@@ -343,7 +349,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final profileRef = storageRef.child("commentPics/" + getUID() + "+" + timeStamp.toString() + ".png");
     final ImagePicker questionImagePicker = ImagePicker();
     XFile? xFile = await questionImagePicker.pickImage(
       source: ImageSource.camera,
@@ -352,7 +358,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     uploadedPicProfileRef = profileRef;
     uploadedPicFile = f;
     if (uploadedPicFile != null) {
-      takeQuestionPicture = true;
+      tookCommentPicture = true;
     }
   }
 
@@ -363,61 +369,67 @@ class _QuestionsPageState extends State<QuestionsPage> {
     comments.sort((a, b) => int.parse(a.timeStamp).compareTo(int.parse(b.timeStamp)));
 
     return Scaffold(
-      appBar: AppBar(
-        leading: Row(
-          children: [
-            IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: (){Navigator.of(context).push(
-                MaterialPageRoute(
-                        builder: (context) => Questions(),
+        appBar: AppBar(
+          leading: Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: (){Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => Questions(),
+                  ),
+                );
+                  },
+              ),
+              TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => PublicProfilePage(uid: authorUID),
                       ),
                     );
-                },
-            ),
-            TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => PublicProfilePage(uid: authorUID),
+                    },
+                  child: Container(
+                    child: questionAuthorProfilePic,
+                    height: 42,
+                    width: 42,
+                  )
+              ),
+            ],
+          ),
+          leadingWidth: 120,
+          title: Row(
+            children: [
+              Expanded(
+                flex: 25,
+                child: Text(
+                  name,
+                  style: GoogleFonts.notoSans(
+                    textStyle: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                  );
-                },
-                child: Container(
-                  child: questionAuthorProfilePic,
-                  height: 50,
-                  width: 50,
-                )
-            ),
-          ],
-        ),
-        leadingWidth: 120,
-        title: Row(
-          children: [
-            Expanded(
-              flex: 25,
-              child: Text(
-                name,
-                style: TextStyle(
-                  fontSize: 20,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 75,
-              child: Text(
-                date,
-                style: TextStyle(
-                  fontSize: 20,
+              Expanded(
+                flex: 75,
+                child: Text(
+                  date,
+                  style: GoogleFonts.notoSans(
+                    textStyle: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        toolbarHeight: 90,
-        backgroundColor: Color.fromRGBO(167, 190, 169, 1),
-      ),
-      body: SingleChildScrollView(
+            ],
+          ),
+          toolbarHeight: 80,
+          backgroundColor: Color.fromRGBO(167, 190, 169, 1),
+    ),
+    body: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -426,7 +438,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
               child: Container(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                    question.title,
+                  question.title,
                   style: GoogleFonts.notoSans(
                     textStyle: TextStyle(
                       fontSize: 21,
@@ -438,26 +450,22 @@ class _QuestionsPageState extends State<QuestionsPage> {
             ),
             Container(
               alignment: Alignment.centerLeft,
-              child: Column(
-                children: [
-                  Text(
-                      question.content,
-                    style: GoogleFonts.notoSans(
-                      textStyle: TextStyle(
-                        fontSize: 18,
-                        color: Color.fromRGBO(99, 99, 99, 1),
-                      ),
-                    ),
-                    textAlign: TextAlign.left,
+              child: Text(
+                question.content,
+                style: GoogleFonts.notoSans(
+                  textStyle: TextStyle(
+                    fontSize: 18,
+                    color: Color.fromRGBO(99, 99, 99, 1),
                   ),
-                  (questionPic == null) ? Container(child: Divider(thickness: 1,color: Colors.black,),) :
-                  Container(
-                    width: 150,
-                    height: 150,
-                    child: questionPic
-                  ),
-                ],
+                ),
+                textAlign: TextAlign.left,
               ),
+            ),
+            (questionPic == null) ? Container(child: Divider(thickness: 1,color: Colors.black,),) :
+            Container(
+                width: 150,
+                height: 150,
+                child: questionPic
             ),
             ListView.builder(
               padding: const EdgeInsets.all(8),
@@ -507,7 +515,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
                           });
                         },
                         child: Text(
-                            "Send",
+                          "Send",
                           style: GoogleFonts.notoSans(
                             textStyle: TextStyle(
                               color: Colors.white,
@@ -550,6 +558,13 @@ class _QuestionsPageState extends State<QuestionsPage> {
     String commenterUID = comment.UID;
     var img = profilePicImages[commenterUID];
     TextEditingController replyController = new TextEditingController();
+    var commentPic;
+    if (commentPicRefs.containsKey(comment.UID + "+" + comment.timeStamp)) {
+      print("IN THIS IF STATEMENT R+N");
+      commentPic = commentPicRefs[comment.UID + "+" + comment.timeStamp.toString()];
+    } else {
+      print("DOES NOT EXISST");
+    }
 
     BoxDecoration normalComment = BoxDecoration(
         border: Border.all(
@@ -567,13 +582,13 @@ class _QuestionsPageState extends State<QuestionsPage> {
 
     return Container(
       decoration: comment.isCorrect? correctStyle : normalComment,
-      padding: EdgeInsets.all(10.0),
+      padding: EdgeInsets.all(5.0),
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
-                flex: 2,
+                flex: 8,
                 child: TextButton(
                   child: Container(
                     height: 30,
@@ -589,9 +604,10 @@ class _QuestionsPageState extends State<QuestionsPage> {
                   },
                 ),
               ),
-              Expanded(flex: 3, child: Text(comment.username)),
-              Expanded(flex: 5, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
-              Expanded(flex: 5, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
+              Expanded(flex: 10, child: Text(comment.username)),
+              Expanded(flex: 20, child: Container()),
+              Expanded(flex: 11, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
+              Expanded(flex: 8, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
             ],
           ),
           Row(
@@ -601,26 +617,24 @@ class _QuestionsPageState extends State<QuestionsPage> {
                 child: Column(
                   children: [
                     IconButton(
-                      color: (upPressed == null) ? Colors.black : upPressed ? Colors.green : Colors.black,
-                      // color: upPressed ? Colors.green : Colors.black,
+                      color: (upPressedList.containsKey(comment.UID + "+" + comment.timeStamp)) ? (upPressedList[comment.UID + "+" + comment.timeStamp] == true) ? Colors.green : Colors.black : Colors.black,
                       onPressed: () {
                         if (comment.UID.compareTo(getUID()) != 0)
                           voteComment(comment, 1);
                         setState(() {
-                          upPressed = true;
+                          upPressedList[comment.UID + "+" + comment.timeStamp] = true;
                         });
                       },
                       icon: Icon(Icons.arrow_circle_up),
                     ),
                     Text(comment.score.toString()),
                     IconButton(
-                      color: (upPressed == null) ? Colors.black : upPressed ? Colors.black : Colors.red,
-                      // color: upPressed ? Colors.black12 :  Colors.red,
+                      color: (upPressedList.containsKey(comment.UID + "+" + comment.timeStamp)) ? (upPressedList[comment.UID + "+" + comment.timeStamp] == true) ? Colors.black : Colors.red : Colors.black,
                       onPressed: () {
                         if (comment.UID.compareTo(getUID()) != 0)
                           voteComment(comment, -1);
                         setState(() {
-                          upPressed = false;
+                          upPressedList[comment.UID + "+" + comment.timeStamp] = false;
                         });
                       },
                       icon: Icon(Icons.arrow_circle_down),
@@ -631,7 +645,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
               Expanded(
                 flex: 86,
                 child: Text(
-                    comment.content,
+                  comment.content,
                   style: GoogleFonts.notoSans(
                     textStyle: TextStyle(
                       fontSize: 18,
@@ -659,15 +673,24 @@ class _QuestionsPageState extends State<QuestionsPage> {
                     ),
                   ),
                 ),
-                Expanded(child: IconButton(
-                  onPressed: () async {
-                    // replyButtonClicked = true;
-                    // repliedComment = comment.timeStamp + "+" + comment.UID;
-                    await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
-                  },
-                  icon: Icon(Icons.reply),
-                ), flex: 14,),
+                Expanded(
+                  flex: 14,
+                  child: IconButton(
+                    onPressed: () async {
+                      // replyButtonClicked = true;
+                      // repliedComment = comment.timeStamp + "+" + comment.UID;
+                      await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
+                    },
+                    icon: Icon(Icons.reply),
+                  ),
+                ),
               ]
+          ),
+          (commentPic == null) ? Container() :
+          Container(
+            height: 100,
+            width: 100,
+            child: commentPic,
           ),
           if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0)
             IconButton(

@@ -145,8 +145,9 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           ),
         ),
         bottom: TabBar(
-          indicatorColor: Colors.grey,
           controller: _tabController,
+          indicatorColor: Colors.black,
+          indicatorWeight: 5.0,
           tabs: <Widget> [
             Tab(
               child: Text(
@@ -239,20 +240,6 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
       height: 132,
       child: Center(
         child: ListTile(
-          // leading: TextButton(
-          //   onPressed: () {
-          //     Navigator.of(context).push(
-          //       MaterialPageRoute(
-          //         builder: (context) => PublicProfilePage(uid: questionAuthorUID),
-          //       ),
-          //     );
-          //   },
-          //   child: Container(
-          //     child: img,
-          //     height: 60,
-          //     width: 50,
-          //   ),
-          // ),
           title: Text(
             questions[index].title,
             style: GoogleFonts.notoSans(
