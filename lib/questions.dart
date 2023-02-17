@@ -92,8 +92,8 @@ class _QuestionsState extends State<Questions> {
   Future<void> getQuestions() async {
     questions = [];
     if (filter.isEmpty) {
-      await queryAllQuestions();
-      //await queryWithRecommendation();
+      // await queryAllQuestions();
+      await queryWithRecommendation();
     } else {
       await queryWithFilter();
     }
@@ -205,42 +205,62 @@ class _QuestionsState extends State<Questions> {
     });
   }
 
-  ///Gets the title & content of the most recently commented on question of the user
-  Future<String> getMostRecentlyCommentedOnQuestion() async {
-    String mostRecentQuestionCommentContent = "";
-    int mostRecentTimeStamp = 0;
-    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once().
-    then((value) {
+  Future<List<dynamic>> getUUIDsForRecentlyCommentedOnQuestions() async {
+    var value = await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once();
+    try {
       var info = value.snapshot.value as Map;
-      info.forEach((key, value) async { 
-        if (value > mostRecentTimeStamp) {
-          mostRecentTimeStamp = value;
-          await FirebaseDatabase.instance.ref().child("Questions").child(key).once().
-          then((value) {
-            var info2 = value.snapshot.value as Map;
-            mostRecentQuestionCommentContent = info2["title"] + " " + info2["content"];
-          }).catchError((error) {
-            print("could not get most recent question info " + error.toString());
-          });
+      var mapEntries = info.entries.toList();
+      mapEntries.sort((a, b) => a.value.compareTo(b.value));
+      info.clear();
+      info.addEntries(mapEntries);
+      return info.keys.toList();
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  Future<String> getContents(int count, List<dynamic> uuids) async {
+    if (uuids.isEmpty) {
+      return "";
+    } else {
+      String output = "";
+      for (int i = 0; i < count; i++) {
+        if (i >= uuids.length) {
+          break;
+        } else {
+          output += await getContentOfQuestion(uuids[i]);
         }
-      });
-    }).catchError((error) {
-      print("could not get most recently commented on question " + error.toString());
-    });
-    return mostRecentQuestionCommentContent;
+      }
+      return output;
+    }
+  }
+  
+  Future<String> getContentOfQuestion(String uuid) async {
+    if (uuid.isEmpty) {
+      return "";
+    } else {
+      var value = await FirebaseDatabase.instance.ref().child("Questions").child(uuid).once();
+      var info = value.snapshot.value as Map;
+      return info["title"] + " " + info["content"];
+    }
   }
 
   ///Makes a query for the user based on their most recently asked question or comment.
   Future<void> queryWithRecommendation() async {
-    await getMostRecentlyUploadedQuestion();
-    String mostRecentQuestionAndAnswer = mostRecentlyUploadedQuestion + " " + await getMostRecentlyCommentedOnQuestion();
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$mostRecentQuestionAndAnswer";
+    var uuidList = await getUUIDsForRecentlyCommentedOnQuestions();
+    String mostRecentlyCommentedQuestions = await getContents(3, uuidList);
+    String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$mostRecentlyCommentedQuestions";
     final uri = Uri.parse(url);
     final response = await http.get(uri);
     var responseData = json.decode(response.body);
     print("RESPONSE DATA: " + responseData.toString());
     for (int i = 0; i < responseData.length; i++) {
       Question questionToAdd = await getQuestionInfo(responseData[i].toString());
+
+      if (questionToAdd.author == getUID() || uuidList.contains(responseData[i].toString())) {
+        continue;
+      }
+
       setState(() {
         questions.add(questionToAdd);
       });
