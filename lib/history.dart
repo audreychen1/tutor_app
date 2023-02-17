@@ -26,7 +26,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").once().
     then((value) {
       var info = value.snapshot.value as Map;
-      info.forEach((key, uuid) async {
+      info.forEach((uuid, timestamp) async {
         await lookUpQuestion(getUID()+"+"+uuid);
       });
     }).catchError((onError) {

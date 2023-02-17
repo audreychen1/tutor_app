@@ -173,10 +173,10 @@ class _ProfileState extends State<Profile> {
     await http.get(uri);
   }
 
-  ///Adds the [uuid] of a recently made question to the user's records.
-  Future<void> updateRecordsWithQuestion(String uuid) async {
+  ///Adds the [uuid] and [timestamp] of a recently made question to the user's records.
+  Future<void> updateRecordsWithQuestion(String uuid, int timeStamp) async {
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
-      uuid: uuid,
+      uuid: timeStamp,
     }).
     then((value) {
       print("Set up records");
@@ -230,7 +230,7 @@ class _ProfileState extends State<Profile> {
     ).then((value) async {
       print("Successfully uploaded question");
       
-      await updateRecordsWithQuestion(uuid);
+      await updateRecordsWithQuestion(uuid,timeStamp);
       await sendNotification(titleController.text, contentController.text, subject);
       clearTextControllers();
     }).catchError((onError){

@@ -192,7 +192,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
             c.replies.add(new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false, []));
           });
         }
-        setState(() async {
+        setState(() {
           comments.add(c);
         });
       });
