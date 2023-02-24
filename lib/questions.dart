@@ -118,6 +118,9 @@ class _QuestionsState extends State<Questions> {
   ///If it does, locate it in storage and add it to a profile picture list.
   ///Otherwise, use a placeholder.
   Future<void> downloadProfilePic(dynamic questionData) async {
+    if (!questionData.containsKey("author")) {
+      return;
+    }
     final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + questionData["author"] + ".png");
     await profileRef.getDownloadURL().then((value2) async {
       String url = await profileRef.getDownloadURL();
@@ -374,18 +377,23 @@ class _QuestionsState extends State<Questions> {
     String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$mostRecentlyCommentedQuestions";
     final uri = Uri.parse(url);
     final response = await http.get(uri);
-    var responseData = json.decode(response.body);
-    print("RESPONSE DATA: " + responseData.toString());
-    for (int i = 0; i < responseData.length; i++) {
-      Question questionToAdd = await getQuestionInfo(responseData[i].toString());
+    try {
+      var responseData = json.decode(response.body);
 
-      if (questionToAdd.author == getUID() || uuidList.contains(responseData[i].toString())) {
-        continue;
+      print("RESPONSE DATA: " + responseData.toString());
+      for (int i = 0; i < responseData.length; i++) {
+        Question questionToAdd = await getQuestionInfo(responseData[i].toString());
+
+        if (questionToAdd.author == getUID() || uuidList.contains(responseData[i].toString())) {
+          continue;
+        }
+
+        setState(() {
+          questions.add(questionToAdd);
+        });
       }
-
-      setState(() {
-        questions.add(questionToAdd);
-      });
+    }catch (error){
+      print("Could not find any questions to recommend");
     }
   }
 

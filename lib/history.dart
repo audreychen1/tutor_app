@@ -45,31 +45,39 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     await FirebaseDatabase.instance.ref().child("Questions").child(title).once().
     then((value) {
       var info = value.snapshot.value as Map;
-      setState(() async {
+      setState(() {
         Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
         questions.add(q);
         if (!questionProfilePics.containsKey(info["author"])) {
-          final picRef = FirebaseStorage.instance.ref().child("profilePics/" + info["author"] + ".png");
-          await picRef.getDownloadURL().then((value) {
-            questionProfilePics[info["author"]] = ProfilePicture(
-              name: '',
-              radius: 21,
-              fontsize: 20,
-              img: value,
-            );
-          }).catchError((error) {
-            questionProfilePics[info["author"]] = ProfilePicture(
-              name: '',
-              radius: 21,
-              fontsize: 20,
-              img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-            );
-          });
+          getProfilePics(questionProfilePics, info["author"]);
         }
       });
     }).catchError((onError) {
       print("couldn't look up question" + onError.toString());
     });
+  }
+
+  Future<void> getProfilePics(Map<dynamic, dynamic> list, String author) async {
+    final picRef = await FirebaseStorage.instance.ref().child("profilePics/" + author + ".png");
+      picRef.getDownloadURL().then((value) {
+        setState(() {
+          questionProfilePics[author] = ProfilePicture(
+            name: '',
+            radius: 21,
+            fontsize: 20,
+            img: value,
+          );
+        });
+      }).catchError((error) {
+        setState(() {
+          questionProfilePics[author] = ProfilePicture(
+            name: '',
+            radius: 21,
+            fontsize: 20,
+            img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+          );
+        });
+      });
   }
 
   //get questions the user answered
@@ -82,22 +90,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
         Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
         answeredQuestions.add(q);
         if (!answerProfilePics.containsKey(info["author"])) {
-          final picRef = FirebaseStorage.instance.ref().child("profilePics/" + info["author"] + ".png");
-          await picRef.getDownloadURL().then((value) {
-            answerProfilePics[info["author"]] = ProfilePicture(
-              name: '',
-              radius: 21,
-              fontsize: 20,
-              img: value,
-            );
-          }).catchError((error) {
-            answerProfilePics[info["author"]] = ProfilePicture(
-              name: '',
-              radius: 21,
-              fontsize: 20,
-              img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-            );
-          });
+          getProfilePics(answerProfilePics, info["author"]);
         }
       });
     }).catchError((onError) {
@@ -324,7 +317,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           //   ),
           // ),
           title: Text(
-            questions[index].title,
+            answeredQuestions[index].title,
             style: GoogleFonts.notoSans(
               textStyle: TextStyle(
                 fontSize: 17,
@@ -339,7 +332,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  questions[index].content,
+                  answeredQuestions[index].content,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.notoSans(
@@ -351,7 +344,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               ),
               Row(
                 children: [
-                  Text(questions[index].subject),
+                  Text(answeredQuestions[index].subject),
                 ],
               ),
               Row(

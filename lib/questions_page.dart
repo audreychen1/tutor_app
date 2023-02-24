@@ -229,7 +229,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
       if (uploadQuestionPicture || takeQuestionPicture) {
         try {
           await uploadedPicProfileRef.putFile(uploadedPicFile);
-          await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
+          await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + widget.q.uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
             "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
             "uploadedpictime" : questionPicTime,
           }).then((value) {
@@ -290,7 +290,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
   }
   
   Future<void> markRightAnswer(Comment c) async {
-    await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("correctAnswers").set({
+    await FirebaseDatabase.instance.ref().child("Questions").child(getUID()+"+"+widget.q.uuid).child("correctAnswers").set({
       c.UID: c.timeStamp
     }).then((value) {
       setState(() {
@@ -298,6 +298,14 @@ class _QuestionsPageState extends State<QuestionsPage> {
       });
     }).catchError((onError) {
       print(onError.toString());
+    });
+
+    await FirebaseDatabase.instance.ref().child("Records").child(c.UID).child("correct answers").update({
+      widget.q.uuid : widget.q.uuid,
+    }).then((value) {
+      print("added correct answer to users records");
+    }).catchError((error) {
+      print("could not add correct answers to users recordss " + error.toString());
     });
   }
 
@@ -369,7 +377,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
               icon: Icon(Icons.arrow_back),
               onPressed: (){Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => Questions(),
+                  builder: (context) => Profile(),
                 ),
               );
               },

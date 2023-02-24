@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tutor_app/delete_page.dart';
 import 'package:tutor_app/helper.dart';
 import 'package:tutor_app/history.dart';
 import 'package:tutor_app/questions.dart';
@@ -49,6 +50,7 @@ class _ProfileState extends State<Profile> {
   int numQuestionsAsked = 0;
   int numQuestionsAnswered = 0;
   int numQuestionsAnsweredCorrectly = 0;
+  int numVolunteerHours = 0;
   List<dynamic> subjects = [];
   List<String> comments = [];
   int userScore = 0;
@@ -182,16 +184,69 @@ class _ProfileState extends State<Profile> {
 
   Future<void> getNumQuestionsAndAnswers() async {
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).once().
-    then((value) {
+    then((value) async {
       var info = value.snapshot.value as Map;
       setState(() {
         numQuestionsAsked = info["questions asked"].length;
         numQuestionsAnswered = info["answers"].length;
         numQuestionsAnsweredCorrectly = info["correct answers"].length;
       });
+      String url = "https://Tutor-AI-Server.bigphan.repl.co/community_hour/$numQuestionsAnsweredCorrectly";
+      final uri = Uri.parse(url);
+      final response = await http.get(uri);
+      var responseData = json.decode(response.body);
+      setState(() {
+        numVolunteerHours = int.parse(responseData.toString());
+      });
+      print("RESPONSE DATA: " + responseData.toString());
     }).catchError((error) {
       print("could not get this info " + error.toString());
     });
+  }
+
+  void showDeleteAccountPopUp() {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Delete Account?"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Delete Account?",
+                    style: GoogleFonts.notoSans(
+                      fontSize: 30,
+                    ),
+                  ),
+                  ElevatedButton(
+                      onPressed: () {
+                        FirebaseAuth.instance.currentUser?.delete().then((value) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => Login(),
+                            ),
+                          );
+                        }).catchError((error) {
+                          print("could not delete account " + error.toString());
+                        });
+                      },
+                      child: Text("Delete")
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                  onPressed: (){
+                    Navigator.pop(context);
+                    },
+                  child: Text("Cancel")),
+            ],
+          );
+        }
+    );
   }
 
   Drawer drawerCode() {
@@ -235,6 +290,13 @@ class _ProfileState extends State<Profile> {
               );
             },
             leading: Icon(Icons.question_mark),
+          ),
+          ListTile(
+            title: Text("Delete Account"),
+            onTap: ()  {
+              showDeleteAccountPopUp();
+            },
+            leading: Icon(Icons.restore_from_trash_rounded),
           ),
         ],
       ),
@@ -340,7 +402,7 @@ class _ProfileState extends State<Profile> {
                   ),
                 ),
                 subtitle: Text(
-                  "5",
+                  numVolunteerHours.toString(),
                   style: TextStyle(
                     fontSize: 21,
                     color: Colors.black,
