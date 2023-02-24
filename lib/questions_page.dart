@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:tutor_app/helper.dart';
@@ -48,11 +49,13 @@ class _QuestionsPageState extends State<QuestionsPage> {
   var questionPic;
   bool replyButtonClicked = false;
   String repliedComment = "";
+  var upPressedList = new Map();
   //
   var uploadedPicFile;
   var questionPicTime;
   bool uploadQuestionPicture = false;
   bool takeQuestionPicture = false;
+  var commentPicRefs = new Map();
   var uploadedPicProfileRef;
 
   _QuestionsPageState() {
@@ -226,7 +229,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
       if (uploadQuestionPicture || takeQuestionPicture) {
         try {
           await uploadedPicProfileRef.putFile(uploadedPicFile);
-          await FirebaseDatabase.instance.ref().child("Questions").child(getUID() + "+" + uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
+          await FirebaseDatabase.instance.ref().child("Questions").child(question.author + "+" + uuid).child("comments").child(timeStamp.toString() + "+" + getUID()).update({
             "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
             "uploadedpictime" : questionPicTime,
           }).then((value) {
@@ -237,6 +240,12 @@ class _QuestionsPageState extends State<QuestionsPage> {
         } catch (e) {
           print("could not upoload comment pic " + e.toString());
         }
+        final picRef = FirebaseStorage.instance.ref().child("commentPics/" + getUID() + "+" + questionPicTime.toString() + ".png");
+        await picRef.getDownloadURL().then((value) {
+          commentPicRefs[getUID() + "+" + timeStamp.toString()] = Image.network(value);
+        }).catchError((error) {
+          print("could not get comment pic profile ref " + error.toString());
+        });
       }
     }).catchError((error) {
       print("could not add comment " + error.toString());
@@ -316,7 +325,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final profileRef = storageRef.child("commentPics/" + getUID() + "+" + timeStamp.toString() + ".png");
     final ImagePicker questionImagePicker = ImagePicker();
     XFile? xFile = await questionImagePicker.pickImage(
       source: ImageSource.gallery,
@@ -333,7 +342,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
     questionPicTime = timeStamp;
     final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/" + getUID() + "+" + timeStamp.toString() + ".png");
+    final profileRef = storageRef.child("commentPics/" + getUID() + "+" + timeStamp.toString() + ".png");
     final ImagePicker questionImagePicker = ImagePicker();
     XFile? xFile = await questionImagePicker.pickImage(
       source: ImageSource.camera,
@@ -354,70 +363,103 @@ class _QuestionsPageState extends State<QuestionsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            question.title,
-          style: TextStyle(
-            color: Colors.black,
-          ),
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: (){Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => Questions(),
+                ),
+              );
+              },
+            ),
+            TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => PublicProfilePage(uid: authorUID),
+                    ),
+                  );
+                },
+                child: Container(
+                  child: questionAuthorProfilePic,
+                  height: 42,
+                  width: 42,
+                )
+            ),
+          ],
         ),
-        elevation: 0.0,
-        backgroundColor: Colors.transparent,
+        leadingWidth: 120,
+        title: Row(
+          children: [
+            Expanded(
+              flex: 25,
+              child: Text(
+                name,
+                style: GoogleFonts.notoSans(
+                  textStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 75,
+              child: Text(
+                date,
+                style: GoogleFonts.notoSans(
+                  textStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        toolbarHeight: 80,
+        backgroundColor: Color.fromRGBO(167, 190, 169, 1),
       ),
       body: SingleChildScrollView(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => PublicProfilePage(uid: authorUID),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      child: questionAuthorProfilePic,
-                      height: 50,
-                      width: 50,
-                    )
-                  ),
-                  Text(
-                      name,
-                    style: TextStyle(
-                      fontSize: 20,
+            Padding(
+              padding: EdgeInsets.only(top: 20.0),
+              child: Container(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  question.title,
+                  style: GoogleFonts.notoSans(
+                    textStyle: TextStyle(
+                      fontSize: 21,
+                      color: Colors.black,
                     ),
                   ),
-                  Text("      "),
-                  Text(
-                      date,
-                    style: TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                  Text("  "),
-                  Text(question.subject),
-                ],
+                ),
               ),
+            ),
             Container(
               alignment: Alignment.centerLeft,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                          question.content,
-                        textAlign: TextAlign.left,
-                      ),
-                    ],
+              child: Text(
+                question.content,
+                style: GoogleFonts.notoSans(
+                  textStyle: TextStyle(
+                    fontSize: 18,
+                    color: Color.fromRGBO(99, 99, 99, 1),
                   ),
-                  Container(
-                    width: 150,
-                    height: 150,
-                    child: questionPic
-                  ),
-                ],
+                ),
+                textAlign: TextAlign.left,
               ),
+            ),
+            Text(question.subject),
+            (questionPic == null) ? Container(child: Divider(thickness: 1,color: Colors.black,),) :
+            Container(
+                width: 150,
+                height: 150,
+                child: questionPic
             ),
             ListView.builder(
               padding: const EdgeInsets.all(8),
@@ -428,28 +470,60 @@ class _QuestionsPageState extends State<QuestionsPage> {
                 return Column(
                   children: [
                     _buildComments(index),
-                    Divider(),
+                    (index != comments.length - 1) ? Container(child: Divider(thickness: 1,color: Colors.black,),) : Container(),
                   ],
                 );
               },
             ),
-            TextField(
-              controller: commentsController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "Reply",
-              ),
+            Row(
+              children: [
+                Expanded(
+                  flex: 80,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                    child: SizedBox(
+                      height: 50,
+                      child: TextField(
+                        controller: commentsController,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Reply",
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 20,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 10.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                          color: Color.fromRGBO(132, 169, 140, 1),
+                          borderRadius: BorderRadius.circular(8.0)
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          addComments().then((value) {
+                            controller.jumpTo(controller.position.maxScrollExtent);
+                          });
+                        },
+                        child: Text(
+                          "Send",
+                          style: GoogleFonts.notoSans(
+                            textStyle: TextStyle(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              ],
             ),
             Row(
               children: [
-                ElevatedButton(
-                  onPressed: () {
-                    addComments().then((value) {
-                      controller.jumpTo(controller.position.maxScrollExtent);
-                    });
-                  },
-                  child: Text("Send"),
-                ),
                 IconButton(
                   onPressed: () {
                     uploadCommentPic();
@@ -479,113 +553,149 @@ class _QuestionsPageState extends State<QuestionsPage> {
     String commenterUID = comment.UID;
     var img = profilePicImages[commenterUID];
     TextEditingController replyController = new TextEditingController();
+    var commentPic;
+    if (commentPicRefs.containsKey(comment.UID + "+" + comment.timeStamp.toString())) {
+      commentPic = commentPicRefs[comment.UID + "+" + comment.timeStamp.toString()];
+    } else {
+      print("comment does not have picture");
+    }
 
     BoxDecoration normalComment = BoxDecoration(
-      border: Border.all(
-        color: Colors.grey,
-        width: 2,
-      )
+        border: Border.all(
+          color: Colors.transparent,
+          width: 2,
+        )
     );
 
     BoxDecoration correctStyle = BoxDecoration(
-      border: Border.all(
-        color: Colors.green,
-        width: 2,
-      )
+        border: Border.all(
+          color: Colors.green,
+          width: 2,
+        )
     );
 
     return Container(
       decoration: comment.isCorrect? correctStyle : normalComment,
-      padding: EdgeInsets.all(10.0),
+      padding: EdgeInsets.all(5.0),
       child: Column(
         children: [
           Row(
             children: [
-              Column(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      if (comment.UID.compareTo(getUID()) != 0)
-                        voteComment(comment, 1);
-                    },
-                    icon: Icon(Icons.arrow_circle_up),
+              Expanded(
+                flex: 8,
+                child: TextButton(
+                  child: Container(
+                    height: 30,
+                    width: 30,
+                    child: img,
                   ),
-                  IconButton(
-                    onPressed: () {
-                      if (comment.UID.compareTo(getUID()) != 0)
-                        voteComment(comment, -1);
-                    },
-                    icon: Icon(Icons.arrow_circle_down),
-                  ),
-                ],
-              ),
-              TextButton(
-                child: Container(
-                  height: 50,
-                  width: 50,
-                  child: img,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
+                      ),
+                    );
+                  },
                 ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
-                    ),
-                  );
-                },
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(comment.content),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Text(comment.username),
-                      Text(" "),
-                      Text(date),
-                      Text(" "),
-                      Text(comment.score.toString()),
-                      if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0)
-                        IconButton(
-                          onPressed: () {
-                            markRightAnswer(comment);
-                          },
-                          icon: Icon(Icons.check),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+              Expanded(flex: 10, child: Text(comment.username)),
+              Expanded(flex: 20, child: Container()),
+              Expanded(flex: 11, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
+              Expanded(flex: 8, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
             ],
-          ),
-          TextField(
-            controller: replyController,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: "Reply",
-            ),
           ),
           Row(
             children: [
-              IconButton(
-                  onPressed: () async {
-                    // replyButtonClicked = true;
-                    // repliedComment = comment.timeStamp + "+" + comment.UID;
-                    await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
-                  },
-                  icon: Icon(Icons.reply),
+              Expanded(
+                flex: 14,
+                child: Column(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        if (comment.UID.compareTo(getUID()) != 0) {
+                          voteComment(comment, 1);
+                          setState(() {
+                            upPressedList[getUID() + "+" + comment.timeStamp] = true;
+                          });
+                        }
+                      },
+                      color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.green : Colors.black : Colors.black,
+                      icon: Icon(Icons.arrow_circle_up),
+                    ),
+                    Text(comment.score.toString()),
+                    IconButton(
+                      color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.black : Colors.red : Colors.black,
+                      onPressed: () {
+                        if (comment.UID.compareTo(getUID()) != 0) {
+                          voteComment(comment, -1);
+                          setState(() {
+                            upPressedList[getUID() + "+" + comment.timeStamp] = false;
+                          });
+                        }
+                      },
+                      icon: Icon(Icons.arrow_circle_down),
+                    ),
+                  ],
+                ),
               ),
-              IconButton(
-                  onPressed: () {
-
-                  },
-                  icon: Icon(Icons.add),
+              Expanded(
+                flex: 86,
+                child: Text(
+                  comment.content,
+                  style: GoogleFonts.notoSans(
+                    textStyle: TextStyle(
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
+          (commentPic == null) ? Container() :
+          Container(
+            height: 100,
+            width: 100,
+            child: commentPic,
+          ),
+          Row(
+              children: [
+                Expanded(
+                  flex: 86,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 15.0),
+                    child: Container(
+                      height: 50,
+                      child: TextField(
+                        controller: replyController,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Reply",
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 14,
+                  child: IconButton(
+                    onPressed: () async {
+                      // replyButtonClicked = true;
+                      // repliedComment = comment.timeStamp + "+" + comment.UID;
+                      await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
+                    },
+                    icon: Icon(Icons.reply),
+                  ),
+                ),
+              ]
+          ),
+          if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0)
+            IconButton(
+              onPressed: () {
+                markRightAnswer(comment);
+              },
+              icon: Icon(Icons.check),
+            ),
+          (comment.replies.isEmpty) ? Container() : Padding(padding: EdgeInsets.only(top: 5.0), child: Divider(thickness: 0.5,color: Colors.black,),),
           ListView.builder(
             padding: const EdgeInsets.all(8),
             itemCount: comment.replies.length,
@@ -594,8 +704,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
             itemBuilder: (BuildContext context, int index) {
               return Column(
                 children: [
-                  _buildReply(comment.replies.elementAt(index)),
-                  Divider(),
+                  _buildReply(comment.replies.elementAt(index), comment.replies),
                 ],
               );
             },
@@ -605,7 +714,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
     );
   }
 
-  Widget _buildReply(Comment reply) {
+  Widget _buildReply(Comment reply, List<Comment> replies) {
     int time = int.parse(reply.timeStamp);
     DateTime dt = DateTime.fromMillisecondsSinceEpoch(time);
     String date = DateFormat('y/M/d   kk:mm').format(dt);
@@ -614,7 +723,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
 
     BoxDecoration normalComment = BoxDecoration(
         border: Border.all(
-          color: Colors.grey,
+          color: Colors.transparent,
           width: 2,
         )
     );
@@ -631,53 +740,50 @@ class _QuestionsPageState extends State<QuestionsPage> {
       padding: EdgeInsets.all(10.0),
       child: Row(
         children: [
-          Column(
-            children: [
-              IconButton(
-                onPressed: () {
-                  if (reply.UID.compareTo(getUID()) != 0)
-                    voteComment(reply, 1);
-                },
-                icon: Icon(Icons.arrow_circle_up),
-              ),
-              IconButton(
-                onPressed: () {
-                  if (reply.UID.compareTo(getUID()) != 0)
-                    voteComment(reply, -1);
-                },
-                icon: Icon(Icons.arrow_circle_down),
-              ),
-            ],
-          ),
-          TextButton(
-            child: Container(
-              height: 50,
-              width: 50,
-              child: img,
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => PublicProfilePage(uid: reply.UID.toString()),
-                ),
-              );
-            },
-          ),
+          // Column(
+          //   children: [
+          //     IconButton(
+          //       onPressed: () {
+          //         if (reply.UID.compareTo(getUID()) != 0)
+          //           voteComment(reply, 1);
+          //       },
+          //       icon: Icon(Icons.arrow_circle_up),
+          //     ),
+          //     IconButton(
+          //       onPressed: () {
+          //         if (reply.UID.compareTo(getUID()) != 0)
+          //           voteComment(reply, -1);
+          //       },
+          //       icon: Icon(Icons.arrow_circle_down),
+          //     ),
+          //   ],
+          // ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Text(reply.content),
+                  TextButton(
+                    child: Container(
+                      height: 30,
+                      width: 30,
+                      child: img,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => PublicProfilePage(uid: reply.UID.toString()),
+                        ),
+                      );
+                    },
+                  ),
+                  Text(reply.username),
+                  Text(date),
                 ],
               ),
+              Text(reply.content),
               Row(
                 children: [
-                  Text(reply.username),
-                  Text(" "),
-                  Text(date),
-                  Text(" "),
-                  Text(reply.score.toString()),
                   if (question.author.compareTo(getUID()) == 0 && reply.UID.compareTo(getUID()) != 0)
                     IconButton(
                       onPressed: () {
@@ -689,6 +795,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
               ),
             ],
           ),
+          (replies.indexOf(reply) != replies.length -1) ? Divider() : Container(),
         ],
       ),
     );

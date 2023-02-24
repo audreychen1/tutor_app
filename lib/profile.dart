@@ -47,6 +47,8 @@ class _ProfileState extends State<Profile> {
   String name = "";
   String grade = "";
   int numQuestionsAsked = 0;
+  int numQuestionsAnswered = 0;
+  int numQuestionsAnsweredCorrectly = 0;
   List<dynamic> subjects = [];
   List<String> comments = [];
   int userScore = 0;
@@ -155,164 +157,6 @@ class _ProfileState extends State<Profile> {
     });
   }
 
-  ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post.
-  Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
-    String combined = "$questionTitle $questionDescription";
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/$combined";
-    final uri = Uri.parse(url);
-    final response = await http.get(uri);
-    var responseData = json.decode(response.body);
-    return responseData;
-  }
-
-  ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post
-  ///with a given [topic].
-  Future<void> sendNotification(String questionTitle, String questionDescription, String topic) async {
-    String url = "https://Tutor-AI-Server.bigphan.repl.co/notify/$questionTitle/$questionDescription/$topic";
-    final uri = Uri.parse(url);
-    await http.get(uri);
-  }
-
-  ///Adds the [uuid] and [timestamp] of a recently made question to the user's records.
-  Future<void> updateRecordsWithQuestion(String uuid, int timeStamp) async {
-    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").update({
-      uuid: timeStamp,
-    }).
-    then((value) {
-      print("Set up records");
-    }).catchError((onError) {
-      print("Failed to set up records$onError");
-    });
-  }
-  
-  void clearTextControllers() {
-    setState(() {
-      titleController.text = "";
-      contentController.text = "";
-    });
-  }
-
-  ///Uploads a picture, if the user chose to.
-  Future<void> uploadPictureForQuestion(String uuid) async {
-    if (uploadedQuestionPicture || tookQuestionPicture) {
-      try {
-        await uploadedPicProfileRef.putFile(uploadedPicFile);
-        await FirebaseDatabase.instance.ref().child("Questions").child("${getUID()}+$uuid").update({
-          "uploadedpic": await uploadedPicProfileRef.getDownloadURL(),
-          "uploadedpictime" : questionPicTime,
-        }).then((value) {
-          print("uploaded question pic ");
-        }).catchError((error) {
-          print("not able to upload question pic $error");
-        });
-      } catch (e) {
-        print("could not upload question pic $e");
-      }
-    }
-  }
-
-  ///Occurs when a user taps on the create question button.
-  Future<void> createQuestion() async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    String subject = await getQuestionSubject(titleController.text, contentController.text);
-    String uuid = questionUUID.v4();
-    
-    await FirebaseDatabase.instance.ref().child("Questions").child("${getUID()}+$uuid").set(
-        {
-          "time": timeStamp,
-          "content": contentController.text,
-          "author": getUID(),
-          "comments": comments,
-          "title": titleController.text,
-          "uuid": uuid,
-          "subject": subject
-        }
-    ).then((value) async {
-      print("Successfully uploaded question");
-      
-      await updateRecordsWithQuestion(uuid,timeStamp);
-      await sendNotification(titleController.text, contentController.text, subject);
-      clearTextControllers();
-    }).catchError((onError){
-      print("Could not upload question$onError");
-    });
-    
-    //upload picture into firebase
-    await uploadPictureForQuestion(uuid);
-  }
-
-  ///Displays a pop up showing the form data for creating a new question.
-  void showQuestionDialog(BuildContext context) {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text("New Question"),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Title",
-                    ),
-                  ),
-                  TextField(
-                    controller: contentController,
-                    minLines: 3,
-                    maxLines: null,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Content",
-                    ),
-                  ),
-                  if (uploadedQuestionPicture || tookQuestionPicture)
-                    Text(uploadedPicFile.path),
-                ],
-              ),
-            ),
-            actions: [
-              ElevatedButton(
-                  onPressed: () {
-                    if (titleController.text.isNotEmpty && contentController.text.isNotEmpty) {
-                      createQuestion().then((value) {
-                        Navigator.pop(context);
-                      });
-                    }
-                    setState(() {
-                      numQuestionsAsked = numQuestionsAsked + 1;
-                    });
-                  },
-                  child: Text("Upload"),
-              ),
-              FloatingActionButton(
-                onPressed: () {
-                  takeQuestionPic();
-                },
-                tooltip: "Take Picture",
-                child: const Icon(Icons.camera_alt_outlined),
-              ),
-              FloatingActionButton(
-                onPressed: () {
-                  uploadQuestionPic();
-                },
-                tooltip: "Upload Picture",
-                child: const Icon(Icons.photo),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text("Cancel"),
-              ),
-            ],
-          );
-        }
-      );
-  }
-
   ///Brings up the user's photo gallery for them to select a picture to use for a profile picture.
   Future<void> uploadProfilePic() async {
     final storageRef = FirebaseStorage.instance.ref();
@@ -336,233 +180,296 @@ class _ProfileState extends State<Profile> {
     }
   }
 
-  ///Brings up the user's photo gallery for them to select a picture to use for a question.
-  Future<void> uploadQuestionPic() async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    questionPicTime = timeStamp;
-    final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/${getUID()}+$timeStamp.png");
-    final ImagePicker questionImagePicker = ImagePicker();
-    XFile? xFile = await questionImagePicker.pickImage(
-        source: ImageSource.gallery,
-    );
-    File f = File(xFile!.path);
-    uploadedPicProfileRef = profileRef;
-    uploadedPicFile = f;
-    if (uploadedPicFile != null) {
-      uploadedQuestionPicture = true;
-    }
-  }
-
-  ///Brings up the user's camera for them to use for a question.
-  Future<void> takeQuestionPic() async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    questionPicTime = timeStamp;
-    final storageRef = FirebaseStorage.instance.ref();
-    final profileRef = storageRef.child("questionPics/${getUID()}+$timeStamp.png");
-    final ImagePicker questionImagePicker = ImagePicker();
-    XFile? xFile = await questionImagePicker.pickImage(
-      source: ImageSource.camera,
-    );
-    File f = File(xFile!.path);
-    uploadedPicProfileRef = profileRef;
-    uploadedPicFile = f;
-    if (uploadedPicFile != null) {
-      tookQuestionPicture = true;
-    }
+  Future<void> getNumQuestionsAndAnswers() async {
+    await FirebaseDatabase.instance.ref().child("Records").child(getUID()).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      setState(() {
+        numQuestionsAsked = info["questions asked"].length;
+        numQuestionsAnswered = info["answers"].length;
+        numQuestionsAnsweredCorrectly = info["correct answers"].length;
+      });
+    }).catchError((error) {
+      print("could not get this info " + error.toString());
+    });
   }
 
   Drawer drawerCode() {
     return Drawer(
       child: ListView(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(8.0),
         children: [
-          const SizedBox(
+          SizedBox(
             height: 100,
             child: DrawerHeader(
               child: Text("Settings"),
             ),
           ),
           ListTile(
-            title: const Text("Logout"),
-            onTap: () async{
+            title: Text("Logout"),
+            onTap: () async {
               await FirebaseAuth.instance.signOut().then((value) {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => const Login(),
+                    builder: (context) => Login(),
                   ),
                 );
               });
             },
-            leading: const Icon(Icons.logout),
+            leading: Icon(Icons.logout),
           ),
           ListTile(
-            title: const Text("Upload Profile Picture"),
+            title: Text("Upload Profile Picture"),
             onTap: () async {
               await uploadProfilePic();
             },
-            leading: const Icon(Icons.person),
+            leading: Icon(Icons.person),
           ),
           ListTile(
-            title: const Text("Help"),
-            onTap: () {
+            title: Text("Help"),
+            onTap: ()  {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const SupportPage(),
+                  builder: (context) => SupportPage(),
                 ),
               );
             },
-            leading: const Icon(Icons.question_mark),
+            leading: Icon(Icons.question_mark),
           ),
         ],
       ),
     );
   }
 
-  Row createTopRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(6.0),
-          child: SizedBox(
-            height: MediaQuery.of(context).size.width * 0.2,
-            width: MediaQuery.of(context).size.width * 0.2,
-            child: img,
+  Padding createTopRow() {
+    return Padding(
+      padding: EdgeInsets.only(top: 15.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 47,
+            child: Padding(
+              padding: const EdgeInsets.all(6.0),
+              child: Container(
+                height: MediaQuery.of(context).size.width * 0.25,
+                width: MediaQuery.of(context).size.width * 0.25,
+                child: img,
+              ),
+            ),
           ),
-        ),
-        Row(
-          children: [
-            Column(
-              children: [
-                Text(
-                  grade,
-                  style: GoogleFonts.notoSans(
-                    textStyle:const TextStyle(
-                      fontSize: 20,
-                    ),
+          Expanded(
+            flex: 53,
+            child: Padding(
+              padding: EdgeInsets.only(top: 20.0, right: 10.0),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(right: 20.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              grade,
+                              style: GoogleFonts.notoSans(
+                                textStyle:TextStyle(
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              "Grade",
+                              style: GoogleFonts.notoSans(
+                                textStyle:TextStyle(
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            userScore.toString(),
+                            style: GoogleFonts.notoSans(
+                              textStyle:TextStyle(
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            "Joined",
+                            style: GoogleFonts.notoSans(
+                              textStyle:TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
                   ),
-                ),
-                Text(
-                  "Grade",
-                  style: GoogleFonts.notoSans(
-                    textStyle:const TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const Placeholder(
-              fallbackWidth: 20,
-              fallbackHeight: 20,
-              color: Colors.transparent,
-            ),
-            Column(
-              children: [
-                Text(
-                  userScore.toString(),
-                  style: GoogleFonts.notoSans(
-                    textStyle:const TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-                Text(
-                  "Joined",
-                  style: GoogleFonts.notoSans(
-                    textStyle:const TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
   Column createMiddleColumn() {
     return Column(
       children: [
-        const ListTile(
-          title: Text(
-            "Volunteer Hours",
-            style: TextStyle(
-              fontSize: 20,
-            ),
-          ),
-          subtitle: Text(
-            "5",
-            style: TextStyle(
-              fontSize: 30,
-            ),
-          ),
-          leading: Icon(Icons.volunteer_activism),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Volunteer Hours",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  "5",
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.volunteer_activism),
+                  onPressed: (){},
+                  color: Color.fromRGBO(224, 224, 221, 1),
+                ),
+              ),
+            )
+          ],
         ),
-        ListTile(
-          title: const Text(
-            "Subjects",
-            style: TextStyle(
-              fontSize: 20,
-            ),
-          ),
-          subtitle: Text(
-            displaySubjects,
-            style: const TextStyle(
-              fontSize: 30,
-            ),
-          ),
-          leading: const Icon(Icons.menu_book_sharp),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Interests",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  displaySubjects,
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.menu_book_sharp),
+                  onPressed: (){},
+                  color: Color.fromRGBO(167, 190, 169, 1),
+                ),
+              ),
+            )
+          ],
         ),
-        const ListTile(
-          title: Text(
-            "Questions Asked",
-            style: TextStyle(
-              fontSize: 20,
-            ),
-          ),
-          subtitle: Text(
-            "0",
-            style: TextStyle(
-              fontSize: 30,
-            ),
-          ),
-          leading: Icon(Icons.question_mark_sharp),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Questions Asked",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  numQuestionsAsked.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.question_mark_sharp),
+                  onPressed: (){},
+                  color: Color.fromRGBO(132, 169, 140, 1),
+                ),
+              ),
+            )
+          ],
         ),
-        const ListTile(
-          title: Text(
-            "Questions Answered",
-            style: TextStyle(
-              fontSize: 20,
-            ),
-          ),
-          subtitle: Text(
-            "0",
-            style: TextStyle(
-              fontSize: 30,
-            ),
-          ),
-          leading: Icon(Icons.question_answer_outlined),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Questions Answered",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  numQuestionsAnswered.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.question_answer),
+                  onPressed: (){},
+                  color: Color.fromRGBO(82, 121, 111, 1),
+                ),
+              ),
+            )
+          ],
         ),
-        const ListTile(
-          title: Text(
-            "Questions Answered Correctly",
-            style: TextStyle(
-              fontSize: 20,
-            ),
-          ),
-          subtitle: Text(
-            "0",
-            style: TextStyle(
-              fontSize: 30,
-            ),
-          ),
-          leading: Icon(Icons.check),
+        Row(
+          children: [
+            Expanded(flex: 15, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Correct Answers",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  numQuestionsAnsweredCorrectly.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.check_box_rounded),
+                  onPressed: (){},
+                  color: Color.fromRGBO(53, 79, 82, 1),
+                ),
+              ),
+            )
+          ],
         ),
       ],
     );
@@ -577,57 +484,38 @@ class _ProfileState extends State<Profile> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: Builder(builder: (context) =>
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-              color: Colors.grey,
-            ),
-        ),
-        //backgroundColor: Colors.transparent,
-        title: Text(
+        appBar: AppBar(
+          automaticallyImplyLeading: true,
+          elevation: 6,
+          leading: Builder(builder: (context) =>
+              IconButton(
+                icon: Icon(Icons.settings),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+                color: Colors.black,
+              ),
+          ),
+          backgroundColor: Color.fromRGBO(82, 121, 111, 1),
+          title: Text(
             name,
-          style: GoogleFonts.workSans(
-            textStyle: const TextStyle(
-              fontSize: 33,
-              color: Colors.black,
+            style: GoogleFonts.workSans(
+              textStyle: TextStyle(
+                fontSize: 33,
+                color: Colors.black,
+              ),
             ),
+            //leading: Icon(Icons.settings),
           ),
         ),
-        //leading: Icon(Icons.settings),
-      ),
-      body: Column(
-        children: [
-          const Placeholder(
-            fallbackHeight: 20,
-            color: Colors.transparent,
+        body: SingleChildScrollView(
+          child: Column(
+              children: [
+                createTopRow(),
+                createMiddleColumn(),
+              ]
           ),
-          Expanded(
-              flex: 20,
-              child: createTopRow()
-          ),
-          Expanded(
-            flex: 75,
-            child: SingleChildScrollView(child: createMiddleColumn())
-          ),
-
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            showQuestionDialog(context);
-          },
-        tooltip: "New Question",
-          child: const Icon(
-              Icons.add,
-          ),
-      ),
+        ),
       drawer: drawerCode()
     );
   }
@@ -636,6 +524,8 @@ class _ProfileState extends State<Profile> {
   Widget build(BuildContext context) {
     return Scaffold (
       bottomNavigationBar: NavigationBar(
+        height: 65,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         onDestinationSelected: (int index) {
           setState(() {
             currentPageIndex = index;
@@ -658,9 +548,10 @@ class _ProfileState extends State<Profile> {
         ],
       ),
       body: <Widget> [
-        const Questions(),
+        Questions(),
+        // Settings(),
         profileUI(),
-        const History(),
+        History(),
       ] [currentPageIndex],
     );
   }
