@@ -33,7 +33,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     then((value) {
       var info = value.snapshot.value as Map;
       info.forEach((uuid, timestamp) async {
-        await lookUpQuestion(getUID()+"+"+uuid);
+        await lookUpQuestionsUserCreated(getUID()+"+"+uuid);
       });
     }).catchError((onError) {
       print("couldn't get questions" + onError.toString());
@@ -41,58 +41,66 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
   }
 
   //get the questions that the user made
-  Future<void> lookUpQuestion(String title) async {
+  Future<void> lookUpQuestionsUserCreated(String title) async {
     await FirebaseDatabase.instance.ref().child("Questions").child(title).once().
     then((value) {
       var info = value.snapshot.value as Map;
-      setState(() {
-        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
-        questions.add(q);
-        if (!questionProfilePics.containsKey(info["author"])) {
-          getProfilePics(questionProfilePics, info["author"]);
-        }
-      });
+      if (mounted) {
+        setState(() {
+          Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
+          questions.add(q);
+          if (!questionProfilePics.containsKey(info["author"])) {
+            getProfilePics(questionProfilePics, info["author"]);
+          }
+        });
+      }
     }).catchError((onError) {
       print("couldn't look up question" + onError.toString());
     });
   }
 
-  Future<void> getProfilePics(Map<dynamic, dynamic> list, String author) async {
+  Future<void> getProfilePics(Map<dynamic, dynamic> profilePictureMap, String author) async {
     final picRef = await FirebaseStorage.instance.ref().child("profilePics/" + author + ".png");
       picRef.getDownloadURL().then((value) {
-        setState(() {
-          questionProfilePics[author] = ProfilePicture(
-            name: '',
-            radius: 21,
-            fontsize: 20,
-            img: value,
-          );
-        });
+        if (mounted) {
+          setState(() {
+            profilePictureMap[author] = ProfilePicture(
+              name: '',
+              radius: 21,
+              fontsize: 20,
+              img: value,
+            );
+          });
+        }
       }).catchError((error) {
-        setState(() {
-          questionProfilePics[author] = ProfilePicture(
-            name: '',
-            radius: 21,
-            fontsize: 20,
-            img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-          );
-        });
+        if (mounted) {
+          setState(() {
+            profilePictureMap[author] = const ProfilePicture(
+              name: '',
+              radius: 21,
+              fontsize: 20,
+              img: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
+            );
+          });
+        }
       });
   }
 
   //get questions the user answered
-  Future<void> lookUpQuestion2(String title) async {
+  Future<void> lookUpQuestionsUserAnswered(String title) async {
     await FirebaseDatabase.instance.ref().child("Questions").child(title).once().
     then((value) {
       var info = value.snapshot.value as Map;
       print(info);
-      setState(() async {
-        Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
-        answeredQuestions.add(q);
-        if (!answerProfilePics.containsKey(info["author"])) {
-          getProfilePics(answerProfilePics, info["author"]);
-        }
-      });
+      if (mounted) {
+        setState(() {
+          Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
+          answeredQuestions.add(q);
+          if (!answerProfilePics.containsKey(info["author"])) {
+            getProfilePics(answerProfilePics, info["author"]);
+          }
+        });
+      }
     }).catchError((onError) {
       print("couldn't look up question 1 " + onError.toString());
     });
@@ -103,7 +111,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     then((value) {
       var info = value.snapshot.value as Map;
       info.forEach((key, value){
-        lookUpQuestion2(key);
+        lookUpQuestionsUserAnswered(key);
       });
     }).catchError((error) {
       print("could not get comments" + error.toString());

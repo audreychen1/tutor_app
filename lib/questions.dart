@@ -106,11 +106,21 @@ class _QuestionsState extends State<Questions> {
   ///Updates the questions list by referencing the Firebase Realtime Database.
   Future<void> getQuestions() async {
     questions = [];
-    if (filter.isEmpty) {
-      // await queryAllQuestions();
-      await queryWithRecommendation();
-    } else {
+
+    if (filter.isNotEmpty) {
+      print("searching!");
       await queryWithFilter();
+      return;
+    }
+
+    var uuidList = await getUUIDsForRecentlyCommentedOnQuestions();
+    if (uuidList.isEmpty) {
+      print("no comments made! querying everything");
+      await queryAllQuestions();
+    }
+    else {
+      print("comments found! recommending");
+      await queryWithRecommendation(uuidList);
     }
   }
 
@@ -124,14 +134,16 @@ class _QuestionsState extends State<Questions> {
     final profileRef = FirebaseStorage.instance.ref().child("profilePics/" + questionData["author"] + ".png");
     await profileRef.getDownloadURL().then((value2) async {
       String url = await profileRef.getDownloadURL();
-      setState(() {
-        questionProfilePics[questionData["author"]] = ProfilePicture(
-          name: 'NAME',
-          radius: 20,
-          fontsize: 20,
-          img: url,
-        );
-      });
+      if (mounted) {
+        setState(() {
+          questionProfilePics[questionData["author"]] = ProfilePicture(
+            name: 'NAME',
+            radius: 20,
+            fontsize: 20,
+            img: url,
+          );
+        });
+      }
     }).catchError((error) {
       if (mounted) {
         setState(() {
@@ -160,7 +172,9 @@ class _QuestionsState extends State<Questions> {
     await FirebaseDatabase.instance.ref().child("Questions").once().
     then((value) async {
       var info = value.snapshot.value as Map;
-      await getProfilePicForQuestions(info);
+      if (mounted) {
+        await getProfilePicForQuestions(info);
+      }
     }).catchError((error) {
       print("could not get question profile pics $error");
     });
@@ -371,8 +385,7 @@ class _QuestionsState extends State<Questions> {
   }
 
   ///Makes a query for the user based on their most recently asked question or comment.
-  Future<void> queryWithRecommendation() async {
-    var uuidList = await getUUIDsForRecentlyCommentedOnQuestions();
+  Future<void> queryWithRecommendation(dynamic uuidList) async {
     String mostRecentlyCommentedQuestions = await getContents(3, uuidList);
     String url = "https://Tutor-AI-Server.bigphan.repl.co/recommend/$mostRecentlyCommentedQuestions";
     final uri = Uri.parse(url);
@@ -560,12 +573,12 @@ class _QuestionsState extends State<Questions> {
               hintText: "Search",
               onClearButtonPressed: (value) {
                 searchController.clear();
+                filter = "";
+                getQuestions();
               },
               onSearchButtonPressed: (value) {
-                setState(() {
-                  filter = value.toString();
-                  getQuestions();
-                });
+                filter = value.toString();
+                getQuestions();
               },
               borderColor: Color.fromRGBO(120, 119, 128, 1),
               searchButtonIconColor: Color.fromRGBO(120, 119, 128, 1),
@@ -579,7 +592,6 @@ class _QuestionsState extends State<Questions> {
                     child: Lottie.asset("assets/animations/hUiEYf0LGw.json"),
                   ),
                   Container(
-                    margin: EdgeInsets.all(100.0),
                     padding: EdgeInsets.all(5.0),
                     child: Text(
                       "No Questions",

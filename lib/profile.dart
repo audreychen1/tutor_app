@@ -67,6 +67,7 @@ class _ProfileState extends State<Profile> {
   _ProfileState() {
     getProfileInfo();
     getScore();
+    getNumQuestionsAndAnswers();
   }
 
   ///Unsubscribes from all possible topics and resubscribes based on the
@@ -138,7 +139,9 @@ class _ProfileState extends State<Profile> {
   ///Gets the score for a collection of comments.
   Future<void> tallyUpAnswers(dynamic answers) async {
     answers.forEach((questionTitle, timeStamp) async {
-      await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()).once().
+      print(questionTitle);
+      print(timeStamp.toString());
+      await FirebaseDatabase.instance.ref().child("Questions").child(questionTitle).child("comments").child(timeStamp.toString()+"+"+getUID()).once().
       then((value) {
         var comment = value.snapshot.value as Map;
         tallyUpCommentScore(comment);
@@ -174,6 +177,7 @@ class _ProfileState extends State<Profile> {
         "profilepic":await profileRef.getDownloadURL(),
       }).then((value) {
         print("uploaded profile pic");
+        getProfileInfo();
       }).catchError((onError) {
         print("could not upload profile pic");
       });
@@ -186,17 +190,26 @@ class _ProfileState extends State<Profile> {
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).once().
     then((value) async {
       var info = value.snapshot.value as Map;
+      print("PROFILE DATA: " + info.toString());
       setState(() {
-        numQuestionsAsked = info["questions asked"].length;
-        numQuestionsAnswered = info["answers"].length;
-        numQuestionsAnsweredCorrectly = info["correct answers"].length;
+        if (info.containsKey("questions asked")) {
+          numQuestionsAsked = info["questions asked"].length;
+        }
+
+        if (info.containsKey("answers")) {
+          numQuestionsAnswered = info["answers"].length;
+        }
+
+        if (info.containsKey("correct answers")) {
+          numQuestionsAnsweredCorrectly = info["correct answers"].length;
+        }
       });
       String url = "https://Tutor-AI-Server.bigphan.repl.co/community_hour/$numQuestionsAnsweredCorrectly";
       final uri = Uri.parse(url);
       final response = await http.get(uri);
       var responseData = json.decode(response.body);
       setState(() {
-        numVolunteerHours = int.parse(responseData.toString());
+        numVolunteerHours = double.parse(responseData.toString()).toInt();
       });
       print("RESPONSE DATA: " + responseData.toString());
     }).catchError((error) {
@@ -364,7 +377,7 @@ class _ProfileState extends State<Profile> {
                             ),
                           ),
                           Text(
-                            "Joined",
+                            "Points",
                             style: GoogleFonts.notoSans(
                               textStyle:TextStyle(
                                 fontSize: 25,
