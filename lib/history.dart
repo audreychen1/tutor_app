@@ -261,8 +261,10 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               itemBuilder: (BuildContext context, int index) {
                 return Column(
                   children: [
-                    _buildAnsweredQuestions(index, answeredQuestions),
-                    Divider(),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+                      child: _buildAnsweredQuestions(index, answeredQuestions),
+                    ),
                   ],
                 );
               }
@@ -292,7 +294,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           ),
         ],
       ),
-      height: 165,
+      height: 170,
       child: Center(
         child: ListTile(
           title: Padding(
@@ -506,11 +508,11 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           ),
         ],
       ),
-      height: 165,
+      height: 170,
       child: Center(
         child: ListTile(
           title: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.only(top: 20.0),
             child: Text(
               answeredQuestions[index].title,
               style: GoogleFonts.notoSans(
@@ -667,9 +669,8 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               ),
               Row(
                 children: [//60 40 40
-                  Expanded(flex: 40, child: Container()),
-                  (img == null) ? Container() :
-                  Expanded(flex: 20, child: TextButton(
+                  Expanded(flex: 42, child: Container()),
+                  Expanded(flex: 25, child: TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -683,8 +684,8 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
                       width: 25,
                     ),
                   ),),
-                  Expanded(flex: 20, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
-                  Expanded(flex: 20, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
+                  Expanded(flex: 25, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
+                  Expanded(flex: 15, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
                 ],
               ),
             ],
