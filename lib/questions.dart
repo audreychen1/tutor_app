@@ -54,6 +54,22 @@ class _QuestionsState extends State<Questions> {
   var questionUUID = new Uuid();
   List<String> comments = [];
   var questionViews = new Map();
+  var scrollController = new ScrollController();
+  var lastloadedquestiontime = 0;
+  var bottomflag;
+
+  @override
+  void initState() {
+    super.initState();
+
+    scrollController.addListener(() {
+      if (scrollController.position.atEdge && scrollController.position.pixels != 0) {
+        print("HIT BOTTOM");
+        bottomflag = true;
+        getQuestions();
+      }
+    });
+  }
 
   _QuestionsState() {
     getQuestions().then((value) => getAllProfilePics());
@@ -82,6 +98,10 @@ class _QuestionsState extends State<Questions> {
     await FirebaseDatabase.instance.ref().child("Questions").once().
     then((result) {
       var info = result.snapshot.value as Map;
+      setState(() {
+        var keys = info.keys.toList();
+      });
+      print(info);
       addAllQuestions(info);
     }).catchError((error) {
       print("could not get question info $error");
@@ -410,6 +430,26 @@ class _QuestionsState extends State<Questions> {
     }
   }
 
+  //doesnt work
+  Future<void> viewQuestion(String questionUUID) async {
+    int views = 0;
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      views = info["views"];
+    }).catchError((error) {
+      print("could not get num views " + error.toString());
+    });
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).update({
+      "views" : views + 1,
+    }
+    ).then((value) {
+      print("updated num views");
+    }).catchError((error) {
+      print("could not update num views " + error.toString());
+    });
+  }
+
   ///Displays a pop up showing the form data for creating a new question.
   void showQuestionDialog(BuildContext context) {
     showDialog(
@@ -610,6 +650,7 @@ class _QuestionsState extends State<Questions> {
               flex: 90,
               child: ListView.builder(
                   shrinkWrap: true,
+                  controller: scrollController,
                   padding: const EdgeInsets.all(8),
                   itemCount: questions.length,
                   itemBuilder: (BuildContext context, int index) {
@@ -705,7 +746,7 @@ class _QuestionsState extends State<Questions> {
             ],
           ),
           onTap: () {
-            //viewQuestion(questions[index].author + "+" + questions[index].uuid);
+            viewQuestion(questions[index].author + "+" + questions[index].uuid);
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => QuestionsPage(q: questions[index]),

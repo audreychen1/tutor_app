@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,6 +23,9 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
   List<Question> answeredQuestions = [];
   var questionProfilePics = new Map();
   var answerProfilePics = new Map();
+  var questionViews = new Map();
+  var questionNumReplies = new Map();
+  int? segmentValue = 0;
 
   _HistoryState() {
     getComments();
@@ -51,6 +55,16 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           questions.add(q);
           if (!questionProfilePics.containsKey(info["author"])) {
             getProfilePics(questionProfilePics, info["author"]);
+          }
+          if (info.containsKey("views")) {
+            setState(() {
+              questionViews[info["author"] + "+" + info["uuid"]] = info["views"];
+            });
+          }
+          if (info.containsKey("comments")) {
+            setState(() {
+              questionNumReplies[info["author"] + "+" + info["uuid"]] = info["comments"].length;
+            });
           }
         });
       }
@@ -99,6 +113,16 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           if (!answerProfilePics.containsKey(info["author"])) {
             getProfilePics(answerProfilePics, info["author"]);
           }
+          if (info.containsKey("views")) {
+            setState(() {
+              questionViews[info["author"] + "+" + info["uuid"]] = info["views"];
+            });
+          }
+          if (info.containsKey("comments")) {
+            setState(() {
+              questionNumReplies[info["author"] + "+" + info["uuid"]] = info["comments"].length;
+            });
+          }
         });
       }
     }).catchError((onError) {
@@ -118,13 +142,32 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     });
   }
 
+  Future<void> viewQuestion(String questionUUID) async {
+    int views = 0;
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
+    then((value) {
+      var info = value.snapshot.value as Map;
+      views = info["views"];
+    }).catchError((error) {
+      print("could not get num views " + error.toString());
+    });
+    await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).update({
+      "views" : views + 1,
+    }
+    ).then((value) {
+      print("updated num views");
+    }).catchError((error) {
+      print("could not update num views " + error.toString());
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     late TabController _tabController = new TabController(length: 2, vsync: this);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color.fromRGBO(82, 121, 111, 1),
-        elevation: 3,
+        elevation: 5,
         automaticallyImplyLeading: false,
         title: Center(
           child: Container(
@@ -140,9 +183,10 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
           ),
         ),
         bottom: TabBar(
+          isScrollable: true,
           controller: _tabController,
           indicatorColor: Colors.black,
-          indicatorWeight: 5.0,
+          indicatorWeight: 3.0,
           tabs: <Widget> [
             Tab(
               child: Text(
@@ -190,8 +234,11 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               itemBuilder: (BuildContext context, int index) {
                 return Column(
                   children: [
-                    _buildQuestions(index, questions),
-                    Divider(),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+                      child: _buildQuestions(index, questions),
+                    ),
+                    //Divider(),
                   ],
                 );
               }
@@ -222,7 +269,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               ),
         ],
       ),
-    );
+     );
   }
 
   Widget _buildQuestions(int index, List<Question> list) {
@@ -232,44 +279,182 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     var img = questionProfilePics[questionAuthorUID];
 
     return Container(
-      height: 132,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: Color.fromRGBO(225, 225, 225, 1),
+        ),
+        borderRadius: BorderRadius.circular(10.0),
+        boxShadow: [
+          BoxShadow(
+            color: Color.fromRGBO(225, 225, 225, 1),
+            blurRadius: 12.0,
+          ),
+        ],
+      ),
+      height: 165,
       child: Center(
         child: ListTile(
-          title: Text(
-            questions[index].title,
-            style: GoogleFonts.notoSans(
-              textStyle: TextStyle(
-                fontSize: 17,
+          title: Padding(
+            padding: const EdgeInsets.only(top: 20.0),
+            child: Text(
+              questions[index].title,
+              style: GoogleFonts.notoSans(
+                textStyle: TextStyle(
+                  fontSize: 17,
+                ),
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
           subtitle: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  questions[index].content,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.notoSans(
-                    textStyle: TextStyle(
-                      fontSize: 12.5,
+                child: Padding(
+                  padding: const EdgeInsets.all(5.0),
+                  child: Text(
+                    questions[index].content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.notoSans(
+                      textStyle: TextStyle(
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                 ),
               ),
               Row(
                 children: [
-                  Text(questions[index].subject),
+                  if (questions[index].subject.compareTo("Math") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(96, 189, 219, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("Science") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(117, 209, 152, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("Language") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(182, 144, 212, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("History") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(227, 127, 127, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("English") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(255, 255, 145, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  Container(
+                    width: 10,
+                  ),
+                  questionViews.containsKey(questions[index].author + "+" + questions[index].uuid) ?
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(207, 207, 207, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questionViews[questions[index].author + "+" + questions[index].uuid].toString() + " views"
+                        ),
+                      ),
+                  ) :
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(207, 207, 207, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          "0 views"
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 10,
+                  ),
+                  questionNumReplies.containsKey(questions[index].author + "+" + questions[index].uuid) ?
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(167, 190, 169, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                        questionNumReplies[questions[index].author + "+" + questions[index].uuid].toString() + " replies"
+                      ),
+                    ),
+                  ) : Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(167, 190, 169, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          "0 replies"
+                      ),
+                    ),
+                  ),
                 ],
               ),
               Row(
                 children: [//60 40 40
-                  Expanded(flex: 40, child: Container()),
-                  Expanded(flex: 20, child: TextButton(
+                  Expanded(flex: 42, child: Container()),
+                  Expanded(flex: 25, child: TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -283,13 +468,14 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
                       width: 25,
                     ),
                   ),),
-                  Expanded(flex: 20, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
-                  Expanded(flex: 20, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
+                  Expanded(flex: 25, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
+                  Expanded(flex: 15, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
                 ],
               ),
             ],
           ),
           onTap: () {
+            viewQuestion(questions[index].author + "+" + questions[index].uuid);
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => QuestionsPage(q: list[index]),
@@ -307,52 +493,176 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
     String questionAuthorUID = list[index].author;
     var img = answerProfilePics[questionAuthorUID];
     return Container(
-      height: 132,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: Color.fromRGBO(225, 225, 225, 1),
+        ),
+        borderRadius: BorderRadius.circular(10.0),
+        boxShadow: [
+          BoxShadow(
+            color: Color.fromRGBO(225, 225, 225, 1),
+            blurRadius: 12.0,
+          ),
+        ],
+      ),
+      height: 165,
       child: Center(
         child: ListTile(
-          // leading: TextButton(
-          //   onPressed: () {
-          //     Navigator.of(context).push(
-          //       MaterialPageRoute(
-          //         builder: (context) => PublicProfilePage(uid: questionAuthorUID),
-          //       ),
-          //     );
-          //   },
-          //   child: Container(
-          //     child: img,
-          //     height: 60,
-          //     width: 50,
-          //   ),
-          // ),
-          title: Text(
-            answeredQuestions[index].title,
-            style: GoogleFonts.notoSans(
-              textStyle: TextStyle(
-                fontSize: 17,
+          title: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text(
+              answeredQuestions[index].title,
+              style: GoogleFonts.notoSans(
+                textStyle: TextStyle(
+                  fontSize: 17,
+                ),
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
           subtitle: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  answeredQuestions[index].content,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.notoSans(
-                    textStyle: TextStyle(
-                      fontSize: 12.5,
+                child: Padding(
+                  padding: const EdgeInsets.all(5.0),
+                  child: Text(
+                    answeredQuestions[index].content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.notoSans(
+                      textStyle: TextStyle(
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                 ),
               ),
               Row(
                 children: [
-                  Text(answeredQuestions[index].subject),
+                  if (questions[index].subject.compareTo("Math") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(96, 189, 219, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("Science") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(117, 209, 152, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("Language") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(182, 144, 212, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("History") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(227, 127, 127, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("English") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(255, 255, 145, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  Container(
+                    width: 10,
+                  ),
+                  questionViews.containsKey(questions[index].author + "+" + questions[index].uuid) ?
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(207, 207, 207, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          questionViews[questions[index].author + "+" + questions[index].uuid].toString() + " views"
+                      ),
+                    ),
+                  ) :
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(207, 207, 207, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          "0 views"
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 10,
+                  ),
+                  questionNumReplies.containsKey(questions[index].author + "+" + questions[index].uuid) ?
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(167, 190, 169, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          questionNumReplies[questions[index].author + "+" + questions[index].uuid].toString() + " replies"
+                      ),
+                    ),
+                  ) : Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(167, 190, 169, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          "0 replies"
+                      ),
+                    ),
+                  ),
                 ],
               ),
               Row(

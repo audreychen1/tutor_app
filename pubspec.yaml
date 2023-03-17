@@ -79,6 +79,10 @@ flutter:
     - assets/images/login_banner.png
     - assets/images/signup_banner.png
     - assets/animations/hUiEYf0LGw.json
+    - assets/images/leaf_banner.png
+    - assets/images/leaf_banner2.png
+    - assets/images/leafbanner.png
+    - assets/images/leaf5.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

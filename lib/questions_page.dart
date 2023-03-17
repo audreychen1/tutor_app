@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,9 +30,10 @@ class Comment {
   String username;
   int score;
   bool isCorrect;
+  bool showReply;
   List<Comment> replies;
 
-  Comment(this.UID, this.content, this.timeStamp, this.username, this.score, this.isCorrect, this.replies);
+  Comment(this.UID, this.content, this.timeStamp, this.username, this.score, this.isCorrect, this.showReply, this.replies);
 }
 
 class _QuestionsPageState extends State<QuestionsPage> {
@@ -177,7 +180,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
       comments.clear();
       info.forEach((commentName, value) async {
         String username = await getUsername(value["author"]);
-        Comment c = new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false, []);
+        Comment c = new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false, false, []);
         if (correctAnswers != null && correctAnswers.containsKey(c.UID)) {
          c.isCorrect = true;
         }
@@ -192,7 +195,7 @@ class _QuestionsPageState extends State<QuestionsPage> {
         if (value.containsKey("replies")) {
           var replies = value["replies"] as Map;
           replies.forEach((key, value) {
-            c.replies.add(new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false, []));
+            c.replies.add(new Comment(value["author"], value["content"], value["timestamp"].toString(), username, 0, false, false, []));
           });
         }
         setState(() {
@@ -369,188 +372,499 @@ class _QuestionsPageState extends State<QuestionsPage> {
     String date = DateFormat('y/M/d   kk:mm').format(dt);
     comments.sort((a, b) => int.parse(a.timeStamp).compareTo(int.parse(b.timeStamp)));
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: Row(
-          children: [
-            IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: (){
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => Profile(),
-                  ),
-                );
-              },
-            ),
-            TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => PublicProfilePage(uid: authorUID),
-                    ),
-                  );
-                },
-                child: Container(
-                  child: questionAuthorProfilePic,
-                  height: 42,
-                  width: 42,
-                )
-            ),
-          ],
+    return Material(
+      child: CupertinoPageScaffold(
+        navigationBar: CupertinoNavigationBar(
+          border: null,
+          previousPageTitle: 'Back',
         ),
-        leadingWidth: 120,
-        title: Row(
-          children: [
-            Expanded(
-              flex: 25,
-              child: Text(
-                name,
-                style: GoogleFonts.notoSans(
-                  textStyle: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 75,
-              child: Text(
-                date,
-                style: GoogleFonts.notoSans(
-                  textStyle: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        toolbarHeight: 80,
-        backgroundColor: Color.fromRGBO(167, 190, 169, 1),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: 20.0),
-              child: Container(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  question.title,
-                  style: GoogleFonts.notoSans(
-                    textStyle: TextStyle(
-                      fontSize: 21,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Container(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                question.content,
-                style: GoogleFonts.notoSans(
-                  textStyle: TextStyle(
-                    fontSize: 18,
-                    color: Color.fromRGBO(99, 99, 99, 1),
-                  ),
-                ),
-                textAlign: TextAlign.left,
-              ),
-            ),
-            Text(question.subject),
-            (questionPic == null) ? Container(child: Divider(thickness: 1,color: Colors.black,),) :
-            Container(
-                width: 150,
-                height: 150,
-                child: questionPic
-            ),
-            ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: comments.length,
-              shrinkWrap: true,
-              controller: controller,
-              itemBuilder: (BuildContext context, int index) {
-                return Column(
-                  children: [
-                    _buildComments(index),
-                    (index != comments.length - 1) ? Container(child: Divider(thickness: 1,color: Colors.black,),) : Container(),
-                  ],
-                );
-              },
-            ),
-            Row(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
               children: [
-                Expanded(
-                  flex: 80,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: 10.0, right: 10.0),
-                    child: SizedBox(
-                      height: 50,
-                      child: TextField(
-                        controller: commentsController,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: "Reply",
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 20,
-                  child: Padding(
-                    padding: EdgeInsets.only(right: 10.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                          color: Color.fromRGBO(132, 169, 140, 1),
-                          borderRadius: BorderRadius.circular(8.0)
-                      ),
-                      child: TextButton(
-                        onPressed: () {
-                          addComments().then((value) {
-                            controller.jumpTo(controller.position.maxScrollExtent);
-                          });
-                        },
+                Padding(
+                  padding: const EdgeInsets.all(11.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          "Send",
+                          question.title,
                           style: GoogleFonts.notoSans(
                             textStyle: TextStyle(
-                              color: Colors.white,
+                              fontSize: 21,
+                              color: Colors.black,
                             ),
                           ),
                         ),
                       ),
-                    ),
+                      Container(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          question.content,
+                          style: GoogleFonts.notoSans(
+                            textStyle: TextStyle(
+                              fontSize: 18,
+                              color: Color.fromRGBO(99, 99, 99, 1),
+                            ),
+                          ),
+                          textAlign: TextAlign.left,
+                        ),
+                      ),
+                      (questionPic == null) ? Container() :
+                      Container(
+                          width: 150,
+                          height: 150,
+                          child: questionPic
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 20,
+                            child: Row(
+                              children: [
+                                if (question.subject.compareTo("Math") == 0)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Color.fromRGBO(96, 189, 219, 1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                                      child: Text(
+                                          question.subject
+                                      ),
+                                    ),
+                                  ),
+                                if (question.subject.compareTo("Science") == 0)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Color.fromRGBO(117, 209, 152, 1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                            question.subject
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                if (question.subject.compareTo("Language") == 0)Container(
+                                  decoration: BoxDecoration(
+                                    color: Color.fromRGBO(182, 144, 212, 1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                                    child: Text(
+                                        question.subject
+                                    ),
+                                  ),
+                                ),
+                                if (question.subject.compareTo("History") == 0)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Color.fromRGBO(227, 127, 127, 1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                                      child: Text(
+                                          question.subject
+                                      ),
+                                    ),
+                                  ),
+                                if (question.subject.compareTo("English") == 0)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Color.fromRGBO(255, 255, 145, 1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                                      child: Text(
+                                          question.subject
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 60,
+                            child: Row(
+                              children: [
+                                TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => PublicProfilePage(uid: authorUID),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      child: questionAuthorProfilePic,
+                                      height: 26,
+                                      width: 26,
+                                    )
+                                ),
+                                Text(
+                                  name,
+                                  style: GoogleFonts.notoSans(
+                                    textStyle: TextStyle(
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 10,
+                                ),
+                                Text(
+                                  dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString(),
+                                  style: GoogleFonts.notoSans(
+                                    textStyle: TextStyle(
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 10,
+                                ),
+                                Text(
+                                  dt.hour.toString() + ":" + dt.minute.toString(),
+                                  style: GoogleFonts.notoSans(
+                                    textStyle: TextStyle(
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                )
+                ),
+                Container(child: Divider(thickness: 0.5,color: Color.fromRGBO(171, 171, 171, 1),),),
+                ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: comments.length,
+                  shrinkWrap: true,
+                  controller: controller,
+                  itemBuilder: (BuildContext context, int index) {
+                    return Column(
+                      children: [
+                        _buildComments(index),
+                        Container(child: Divider(thickness: 0.5,color: Color.fromRGBO(171, 171, 171, 1),),),
+                      ],
+                    );
+                    },
+                ),
               ],
             ),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    uploadCommentPic();
-                  },
-                  icon: Icon(Icons.photo),
-                ),
-                IconButton(
-                  onPressed: () {
-                    takeCommentPic();
-                  },
-                  icon: Icon(Icons.camera_alt_outlined),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
+    // return Scaffold(
+    //   appBar: AppBar(
+    //     leading: Row(
+    //       children: [
+    //         IconButton(
+    //           icon: Icon(Icons.arrow_back),
+    //           onPressed: (){
+    //             Navigator.of(context).push(
+    //               MaterialPageRoute(
+    //                 builder: (context) => Profile(),
+    //               ),
+    //             );
+    //           },
+    //         ),
+    //         TextButton(
+    //             onPressed: () {
+    //               Navigator.of(context).push(
+    //                 MaterialPageRoute(
+    //                   builder: (context) => PublicProfilePage(uid: authorUID),
+    //                 ),
+    //               );
+    //             },
+    //             child: Container(
+    //               child: questionAuthorProfilePic,
+    //               height: 42,
+    //               width: 42,
+    //             )
+    //         ),
+    //       ],
+    //     ),
+    //     leadingWidth: 120,
+    //     title: Text(
+    //       name,
+    //       style: GoogleFonts.notoSans(
+    //         textStyle: TextStyle(
+    //           fontSize: 20,
+    //           fontWeight: FontWeight.bold,
+    //         ),
+    //       ),
+    //     ),
+    //     toolbarHeight: 65,
+    //     backgroundColor: Color.fromRGBO(167, 190, 169, 1),
+    //   ),
+    //   body: SingleChildScrollView(
+    //     child: Padding(
+    //       padding: const EdgeInsets.all(10.0),
+    //       child: Column(
+    //         children: [
+    //           Padding(
+    //             padding: EdgeInsets.only(top: 10.0),
+    //             child: Container(
+    //               alignment: Alignment.centerLeft,
+    //               child: Text(
+    //                 question.title,
+    //                 style: GoogleFonts.notoSans(
+    //                   textStyle: TextStyle(
+    //                     fontSize: 21,
+    //                     color: Colors.black,
+    //                   ),
+    //                 ),
+    //               ),
+    //             ),
+    //           ),
+    //           Container(
+    //             alignment: Alignment.centerLeft,
+    //             child: Text(
+    //               question.content,
+    //               style: GoogleFonts.notoSans(
+    //                 textStyle: TextStyle(
+    //                   fontSize: 18,
+    //                   color: Color.fromRGBO(99, 99, 99, 1),
+    //                 ),
+    //               ),
+    //               textAlign: TextAlign.left,
+    //             ),
+    //           ),
+    //           (questionPic == null) ? Container() :
+    //           Container(
+    //               width: 150,
+    //               height: 150,
+    //               child: questionPic
+    //           ),
+    //           Row(
+    //             children: [
+    //               Expanded(
+    //                 flex: 20,
+    //                 child: Row(
+    //                   children: [
+    //                     if (question.subject.compareTo("Math") == 0)
+    //                       Container(
+    //                         decoration: BoxDecoration(
+    //                           color: Color.fromRGBO(96, 189, 219, 1),
+    //                           borderRadius: BorderRadius.circular(10),
+    //                         ),
+    //                         child: Padding(
+    //                           padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+    //                           child: Text(
+    //                               question.subject
+    //                           ),
+    //                         ),
+    //                       ),
+    //                     if (question.subject.compareTo("Science") == 0)
+    //                       Container(
+    //                         decoration: BoxDecoration(
+    //                           color: Color.fromRGBO(117, 209, 152, 1),
+    //                           borderRadius: BorderRadius.circular(10),
+    //                         ),
+    //                         child: Padding(
+    //                           padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+    //                           child: Align(
+    //                             alignment: Alignment.centerLeft,
+    //                             child: Text(
+    //                                 question.subject
+    //                             ),
+    //                           ),
+    //                         ),
+    //                       ),
+    //                     if (question.subject.compareTo("Language") == 0)
+    //                       Container(
+    //                         decoration: BoxDecoration(
+    //                           color: Color.fromRGBO(182, 144, 212, 1),
+    //                           borderRadius: BorderRadius.circular(10),
+    //                         ),
+    //                         child: Padding(
+    //                           padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+    //                           child: Text(
+    //                               question.subject
+    //                           ),
+    //                         ),
+    //                       ),
+    //                     if (question.subject.compareTo("History") == 0)
+    //                       Container(
+    //                         decoration: BoxDecoration(
+    //                           color: Color.fromRGBO(227, 127, 127, 1),
+    //                           borderRadius: BorderRadius.circular(10),
+    //                         ),
+    //                         child: Padding(
+    //                           padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+    //                           child: Text(
+    //                               question.subject
+    //                           ),
+    //                         ),
+    //                       ),
+    //                     if (question.subject.compareTo("English") == 0)
+    //                       Container(
+    //                         decoration: BoxDecoration(
+    //                           color: Color.fromRGBO(255, 255, 145, 1),
+    //                           borderRadius: BorderRadius.circular(10),
+    //                         ),
+    //                         child: Padding(
+    //                           padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+    //                           child: Text(
+    //                               question.subject
+    //                           ),
+    //                         ),
+    //                       ),
+    //                   ],
+    //                 ),
+    //               ),
+    //               Expanded(
+    //                 flex: 60,
+    //                 child: Row(
+    //                   children: [
+    //                     TextButton(
+    //                         onPressed: () {
+    //                           Navigator.of(context).push(
+    //                             MaterialPageRoute(
+    //                               builder: (context) => PublicProfilePage(uid: authorUID),
+    //                             ),
+    //                           );
+    //                         },
+    //                         child: Container(
+    //                           child: questionAuthorProfilePic,
+    //                           height: 26,
+    //                           width: 26,
+    //                         )
+    //                     ),
+    //                     Text(
+    //                       name,
+    //                       style: GoogleFonts.notoSans(
+    //                         textStyle: TextStyle(
+    //                           fontSize: 18,
+    //                         ),
+    //                       ),
+    //                     ),
+    //                     Container(
+    //                       width: 10,
+    //                     ),
+    //                     Text(
+    //                       dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString(),
+    //                       style: GoogleFonts.notoSans(
+    //                         textStyle: TextStyle(
+    //                           fontSize: 18,
+    //                         ),
+    //                       ),
+    //                     ),
+    //                     Container(
+    //                       width: 10,
+    //                     ),
+    //                     Text(
+    //                       dt.hour.toString() + ":" + dt.minute.toString(),
+    //                       style: GoogleFonts.notoSans(
+    //                         textStyle: TextStyle(
+    //                           fontSize: 18,
+    //                         ),
+    //                       ),
+    //                     ),
+    //                   ],
+    //                 ),
+    //               ),
+    //             ],
+    //           ),
+    //           Container(child: Divider(thickness: 1,color: Colors.black,),),
+    //           ListView.builder(
+    //             padding: const EdgeInsets.all(8),
+    //             itemCount: comments.length,
+    //             shrinkWrap: true,
+    //             controller: controller,
+    //             itemBuilder: (BuildContext context, int index) {
+    //               return Column(
+    //                 children: [
+    //                   _buildComments(index),
+    //                   Container(child: Divider(thickness: 1,color: Colors.black,),)
+    //                 ],
+    //               );
+    //             },
+    //           ),
+    //           Row(
+    //             children: [
+    //               Expanded(
+    //                 flex: 80,
+    //                 child: Padding(
+    //                   padding: EdgeInsets.only(left: 10.0, right: 10.0),
+    //                   child: SizedBox(
+    //                     height: 50,
+    //                     child: TextField(
+    //                       controller: commentsController,
+    //                       decoration: InputDecoration(
+    //                         border: OutlineInputBorder(),
+    //                         hintText: "Reply",
+    //                       ),
+    //                     ),
+    //                   ),
+    //                 ),
+    //               ),
+    //               Expanded(
+    //                 flex: 20,
+    //                 child: Padding(
+    //                   padding: EdgeInsets.only(right: 10.0),
+    //                   child: Container(
+    //                     decoration: BoxDecoration(
+    //                         color: Color.fromRGBO(132, 169, 140, 1),
+    //                         borderRadius: BorderRadius.circular(8.0)
+    //                     ),
+    //                     child: TextButton(
+    //                       onPressed: () {
+    //                         addComments().then((value) {
+    //                           controller.jumpTo(controller.position.maxScrollExtent);
+    //                         });
+    //                       },
+    //                       child: Text(
+    //                         "Send",
+    //                         style: GoogleFonts.notoSans(
+    //                           textStyle: TextStyle(
+    //                             color: Colors.white,
+    //                           ),
+    //                         ),
+    //                       ),
+    //                     ),
+    //                   ),
+    //                 ),
+    //               )
+    //             ],
+    //           ),
+    //           Row(
+    //             children: [
+    //               IconButton(
+    //                 onPressed: () {
+    //                   uploadCommentPic();
+    //                 },
+    //                 icon: Icon(Icons.photo),
+    //               ),
+    //               IconButton(
+    //                 onPressed: () {
+    //                   takeCommentPic();
+    //                 },
+    //                 icon: Icon(Icons.camera_alt_outlined),
+    //               ),
+    //             ],
+    //           ),
+    //         ],
+    //       ),
+    //     ),
+    //   ),
+    // );
   }
 
   //widget for comments
@@ -590,113 +904,90 @@ class _QuestionsPageState extends State<QuestionsPage> {
         children: [
           Row(
             children: [
-              Expanded(
-                flex: 8,
-                child: TextButton(
-                  child: Container(
-                    height: 30,
-                    width: 30,
-                    child: img,
+              Column(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0) {
+                        voteComment(comment, 1);
+                        setState(() {
+                          upPressedList[getUID() + "+" + comment.timeStamp] = true;
+                        });
+                      }
+                    },
+                    color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.green : Colors.black : Colors.black,
+                    icon: Icon(Icons.thumb_up_alt_rounded),
                   ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
+                  Text(comment.score.toString()),
+                  IconButton(
+                    color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.black : Colors.red : Colors.black,
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0) {
+                        voteComment(comment, -1);
+                        setState(() {
+                          upPressedList[getUID() + "+" + comment.timeStamp] = false;
+                        });
+                      }
+                    },
+                    icon: Icon(Icons.thumb_down_alt_rounded),
+                  ),
+                ],
+              ),
+              Column(
+                children: [
+                  Text(
+                    comment.content,
+                    style: GoogleFonts.notoSans(
+                      textStyle: TextStyle(
+                        fontSize: 18,
                       ),
-                    );
-                  },
-                ),
-              ),
-              Expanded(flex: 10, child: Text(comment.username)),
-              Expanded(flex: 20, child: Container()),
-              Expanded(flex: 11, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
-              Expanded(flex: 8, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                flex: 14,
-                child: Column(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        if (comment.UID.compareTo(getUID()) != 0) {
-                          voteComment(comment, 1);
-                          setState(() {
-                            upPressedList[getUID() + "+" + comment.timeStamp] = true;
-                          });
-                        }
-                      },
-                      color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.green : Colors.black : Colors.black,
-                      icon: Icon(Icons.arrow_circle_up),
-                    ),
-                    Text(comment.score.toString()),
-                    IconButton(
-                      color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.black : Colors.red : Colors.black,
-                      onPressed: () {
-                        if (comment.UID.compareTo(getUID()) != 0) {
-                          voteComment(comment, -1);
-                          setState(() {
-                            upPressedList[getUID() + "+" + comment.timeStamp] = false;
-                          });
-                        }
-                      },
-                      icon: Icon(Icons.arrow_circle_down),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                flex: 86,
-                child: Text(
-                  comment.content,
-                  style: GoogleFonts.notoSans(
-                    textStyle: TextStyle(
-                      fontSize: 18,
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
-          (commentPic == null) ? Container() :
+          (commentPic == null) ? Container(height: 10,) :
           Container(
             height: 100,
             width: 100,
             child: commentPic,
           ),
-          Row(
-              children: [
-                Expanded(
-                  flex: 86,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: 15.0),
-                    child: Container(
-                      height: 50,
-                      child: TextField(
-                        controller: replyController,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: "Reply",
+          if (comment.showReply)
+            Row(
+                children: [
+                  Expanded(
+                    flex: 86,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 5.0),
+                      child: Container(
+                        height: 45,
+                        child: CupertinoTextField(
+                          controller: replyController,
+                          placeholder: 'Reply',
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Color.fromRGBO(171, 171, 171, 1),
+                            ),
+                            borderRadius: BorderRadius.circular(6.0),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  flex: 14,
-                  child: IconButton(
-                    onPressed: () async {
-                      // replyButtonClicked = true;
-                      // repliedComment = comment.timeStamp + "+" + comment.UID;
-                      await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
-                    },
-                    icon: Icon(Icons.reply),
+                  Expanded(
+                    flex: 14,
+                    child: IconButton(
+                      onPressed: () async {
+                        // replyButtonClicked = true;
+                        // repliedComment = comment.timeStamp + "+" + comment.UID;
+                        await replyToComment(comment.timeStamp + "+" + comment.UID, replyController.text).then((value) => replyController.clear());
+                      },
+                      icon: Icon(Icons.send),
+                    ),
                   ),
-                ),
-              ]
-          ),
+                ]
+            ),
           if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0)
             IconButton(
               onPressed: () {
@@ -717,6 +1008,35 @@ class _QuestionsPageState extends State<QuestionsPage> {
                 ],
               );
             },
+          ),
+          Row(
+            children: [
+              Expanded(flex: 20, child: IconButton(onPressed: (){
+                setState(() {
+                  comment.showReply = !comment.showReply;
+                });
+              }, icon: Icon(Icons.reply)),),
+              Expanded(
+                flex: 10,
+                child: TextButton(
+                  child: Container(
+                    height: 30,
+                    width: 30,
+                    child: img,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => PublicProfilePage(uid: comment.UID.toString()),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Expanded(flex: 15, child: Text(comment.username)),
+              Expanded(flex: 15, child: Text(dt.month.toString() + "/" + dt.day.toString() + "/" + dt.year.toString())),
+              Expanded(flex: 10, child: Text(dt.hour.toString() + ":" + dt.minute.toString())),
+            ],
           ),
         ],
       ),
@@ -749,24 +1069,6 @@ class _QuestionsPageState extends State<QuestionsPage> {
       padding: EdgeInsets.all(10.0),
       child: Row(
         children: [
-          // Column(
-          //   children: [
-          //     IconButton(
-          //       onPressed: () {
-          //         if (reply.UID.compareTo(getUID()) != 0)
-          //           voteComment(reply, 1);
-          //       },
-          //       icon: Icon(Icons.arrow_circle_up),
-          //     ),
-          //     IconButton(
-          //       onPressed: () {
-          //         if (reply.UID.compareTo(getUID()) != 0)
-          //           voteComment(reply, -1);
-          //       },
-          //       icon: Icon(Icons.arrow_circle_down),
-          //     ),
-          //   ],
-          // ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

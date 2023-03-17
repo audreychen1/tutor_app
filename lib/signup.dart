@@ -53,123 +53,17 @@ class _SignupState extends State<Signup> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: Padding(
-        padding: EdgeInsets.only(top: 100),
+      body: SingleChildScrollView(
         child: Column(
           children: [
-            Padding(padding: EdgeInsets.only(bottom: 15.0), child: Text("Signup", style: GoogleFonts.notoSans(textStyle: TextStyle(fontSize: 30,)),)),
-            Padding(
-              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  //borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
-                  ],
-                ),
-                child: TextField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Email",
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  //borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
-                  ],
-                ),
-                child: TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Password",
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  //borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
-                  ],
-                ),
-                child: TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Name",
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
-                  ],
-                ),
-                child: TextField(
-                  controller: gradeController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Grade",
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(left: 15.0, right: 15.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
-                  ],
-                ),
-                child: DropDownMultiSelect(
-                    whenEmpty: "Subjects",
-                    options: ["Math", "Science", "Language", "History", "English"],
-                    selectedValues: subjects,
-                    onChanged: (List<String> x) {
-                      setState(() {
-                        subjects  = x;
-                        //messaging.subscribeToTopic
-                        subjects.forEach((element) {
-                          FirebaseMessaging.instance.subscribeToTopic(element);
-                        });
-                      });
-                    }
-                ),
-              ),
-            ),
             Stack(
               children: [
                 Positioned(
                   child: Container(
-                    height: 300,
+                    height: 280,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage('assets/images/signup_banner.png'),
+                        image: AssetImage('assets/images/leaf5.png'),
                         fit: BoxFit.fill,
                       ),
                     ),
@@ -178,57 +72,195 @@ class _SignupState extends State<Signup> {
                 Column(
                   children: [
                     Padding(
-                      padding: EdgeInsets.only(top: 20.0, left: 15.0, right: 15.0),
-                      child: GestureDetector(
-                        onTap: () {
-                          signUpUser();
-                        },
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10.0),
-                            gradient: LinearGradient(
-                              colors: [
-                                Color.fromRGBO(132, 169, 140, 1),
-                                Color.fromRGBO(202, 210, 197, 1),
-                              ],
-                            ),
-                          ),
-                          child: Center(
-                            child: Text("Signup"),
+                      padding: EdgeInsets.only(
+                        top: 145,
+                        left: 10,
+                      ),
+                      child: Text(
+                        "Signup",
+                        style: GoogleFonts.oswald(
+                            textStyle: TextStyle(
+                              fontSize: 50,
+                            )
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0, top: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          //borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "Email",
                           ),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => Login()),
-                          );
-                        },
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10.0),
-                            gradient: LinearGradient(
-                              colors: [
-                                Color.fromRGBO(132, 169, 140, 1),
-                                Color.fromRGBO(202, 210, 197, 1),
-                              ],
-                            ),
+                      padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          //borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "Password",
                           ),
-                          child: Center(
-                            child: Text("Login"),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          //borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "Name",
                           ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 15.0, right: 15.0, bottom: 10.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: gradeController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "Grade",
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 15.0, right: 15.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Color.fromRGBO(167, 190, 169, 1), blurRadius: 20.0, offset: Offset(10, 10)),
+                          ],
+                        ),
+                        child: DropDownMultiSelect(
+                            whenEmpty: "Subjects",
+                            options: ["Math", "Science", "Language", "History", "English"],
+                            selectedValues: subjects,
+                            onChanged: (List<String> x) {
+                              setState(() {
+                                subjects  = x;
+                                //messaging.subscribeToTopic
+                                subjects.forEach((element) {
+                                  FirebaseMessaging.instance.subscribeToTopic(element);
+                                });
+                              });
+                            }
                         ),
                       ),
                     ),
                   ],
                 ),
               ],
+            ),
+            Padding(
+              padding: EdgeInsets.only(
+                top: 15,
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(top: 20.0, left: 15.0, right: 15.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        signUpUser();
+                      },
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.fromRGBO(132, 169, 140, 1),
+                              Color.fromRGBO(202, 210, 197, 1),
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: Text("Signup"),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(top: 20.0, left: 10.0, right: 10.0),
+                    child: Text(
+                      "Already have an account?",
+                      style: GoogleFonts.notoSans(
+                        textStyle: TextStyle(
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => Login()),
+                        );
+                      },
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.fromRGBO(132, 169, 140, 1),
+                              Color.fromRGBO(202, 210, 197, 1),
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: Text("Login"),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
