@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="audrey.com.tutor_app">
    <application
-        android:label="tutor_app"
+        android:label="BRYT Minds"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

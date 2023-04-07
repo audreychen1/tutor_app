@@ -558,11 +558,84 @@ class _QuestionsPageState extends State<QuestionsPage> {
                   itemBuilder: (BuildContext context, int index) {
                     return Column(
                       children: [
-                        _buildComments(index),
-                        Container(child: Divider(thickness: 0.5,color: Color.fromRGBO(171, 171, 171, 1),),),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: _buildComments(index),
+                        ),
                       ],
                     );
                     },
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 80,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                        child: SizedBox(
+                          height: 50,
+                          child: CupertinoTextField(
+                            controller: commentsController,
+                            decoration: BoxDecoration(
+                              color: Color.fromRGBO(215, 215, 215, 0.5),
+                              border: Border.all(
+                                color: Color.fromRGBO(120, 119, 128, 0.75),
+                              ),
+                              borderRadius: BorderRadius.circular(10.0)
+                            ),
+                            placeholder: "Reply",
+                            placeholderStyle: TextStyle(
+                              color: Color.fromRGBO(145, 145, 145, 1),
+                              fontStyle: FontStyle.italic
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 20,
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 10.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                              color: Color.fromRGBO(132, 169, 140, 1),
+                              borderRadius: BorderRadius.circular(8.0)
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              addComments().then((value) {
+                                controller.jumpTo(controller.position.maxScrollExtent);
+                              });
+                              },
+                            child: Text(
+                              "Send",
+                              style: GoogleFonts.notoSans(
+                                textStyle: TextStyle(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        uploadCommentPic();
+                        },
+                      icon: Icon(Icons.photo),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        takeCommentPic();
+                        },
+                      icon: Icon(Icons.camera_alt_outlined),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -898,54 +971,36 @@ class _QuestionsPageState extends State<QuestionsPage> {
     );
 
     return Container(
-      decoration: comment.isCorrect? correctStyle : normalComment,
+      //decoration: comment.isCorrect? correctStyle : normalComment,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: Color.fromRGBO(225, 225, 225, 1),
+        ),
+        borderRadius: BorderRadius.circular(10.0),
+        boxShadow: [
+          BoxShadow(
+            color: Color.fromRGBO(225, 225, 225, 1),
+            blurRadius: 12.0,
+          ),
+        ]
+      ),
       padding: EdgeInsets.all(5.0),
       child: Column(
         children: [
-          Row(
-            children: [
-              Column(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      if (comment.UID.compareTo(getUID()) != 0) {
-                        voteComment(comment, 1);
-                        setState(() {
-                          upPressedList[getUID() + "+" + comment.timeStamp] = true;
-                        });
-                      }
-                    },
-                    color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.green : Colors.black : Colors.black,
-                    icon: Icon(Icons.thumb_up_alt_rounded),
+          Padding(
+            padding: const EdgeInsets.only(left: 10.0, right: 10.0, top: 15.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                comment.content,
+                style: GoogleFonts.notoSans(
+                  textStyle: TextStyle(
+                    fontSize: 18,
                   ),
-                  Text(comment.score.toString()),
-                  IconButton(
-                    color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.black : Colors.red : Colors.black,
-                    onPressed: () {
-                      if (comment.UID.compareTo(getUID()) != 0) {
-                        voteComment(comment, -1);
-                        setState(() {
-                          upPressedList[getUID() + "+" + comment.timeStamp] = false;
-                        });
-                      }
-                    },
-                    icon: Icon(Icons.thumb_down_alt_rounded),
-                  ),
-                ],
+                ),
               ),
-              Column(
-                children: [
-                  Text(
-                    comment.content,
-                    style: GoogleFonts.notoSans(
-                      textStyle: TextStyle(
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
           (commentPic == null) ? Container(height: 10,) :
           Container(
@@ -988,13 +1043,47 @@ class _QuestionsPageState extends State<QuestionsPage> {
                   ),
                 ]
             ),
-          if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0)
-            IconButton(
-              onPressed: () {
-                markRightAnswer(comment);
-              },
-              icon: Icon(Icons.check),
-            ),
+          Row(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0) {
+                        voteComment(comment, 1);
+                        setState(() {
+                          upPressedList[getUID() + "+" + comment.timeStamp] = true;
+                        });
+                      }
+                    },
+                    color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.green : Colors.black : Colors.black,
+                    icon: Icon(Icons.thumb_up_alt_rounded),
+                  ),
+                  Text(comment.score.toString()),
+                  IconButton(
+                    color: (upPressedList.containsKey(getUID() + "+" + comment.timeStamp)) ? (upPressedList[getUID() + "+" + comment.timeStamp] == true) ? Colors.black : Colors.red : Colors.black,
+                    onPressed: () {
+                      if (comment.UID.compareTo(getUID()) != 0) {
+                        voteComment(comment, -1);
+                        setState(() {
+                          upPressedList[getUID() + "+" + comment.timeStamp] = false;
+                        });
+                      }
+                    },
+                    icon: Icon(Icons.thumb_down_alt_rounded),
+                  ),
+                ],
+              ),
+              IconButton(
+                onPressed: () {
+                  if (question.author.compareTo(getUID()) == 0 && comment.UID.compareTo(getUID()) != 0) {
+                    markRightAnswer(comment);
+                  }
+                  },
+                icon: Icon(Icons.check),
+              ),
+            ],
+          ),
           (comment.replies.isEmpty) ? Container() : Padding(padding: EdgeInsets.only(top: 5.0), child: Divider(thickness: 0.5,color: Colors.black,),),
           ListView.builder(
             padding: const EdgeInsets.all(8),

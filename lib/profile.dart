@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,6 +18,7 @@ import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 class Profile extends StatefulWidget {
   const Profile({Key? key}) : super(key: key);
@@ -218,47 +220,35 @@ class _ProfileState extends State<Profile> {
   }
 
   void showDeleteAccountPopUp() {
-    showDialog(
+    showCupertinoModalPopup(
         context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text("Delete Account?"),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "Delete Account?",
-                    style: GoogleFonts.notoSans(
-                      fontSize: 30,
+        builder: (BuildContext context) => CupertinoAlertDialog(
+          title: const Text("Delete Account"),
+          content: const Text("Do you want to delete your account?"),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text("Delete"),
+              onPressed: () {
+                FirebaseAuth.instance.currentUser?.delete().then((value) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => Login(),
                     ),
-                  ),
-                  ElevatedButton(
-                      onPressed: () {
-                        FirebaseAuth.instance.currentUser?.delete().then((value) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => Login(),
-                            ),
-                          );
-                        }).catchError((error) {
-                          print("could not delete account " + error.toString());
-                        });
-                      },
-                      child: Text("Delete")
-                  ),
-                ],
-              ),
+                  );
+                }).catchError((error) {
+                  print("could not delete account " + error.toString());
+                });
+              },
+              isDestructiveAction: true,
             ),
-            actions: [
-              ElevatedButton(
-                  onPressed: (){
-                    Navigator.pop(context);
-                    },
-                  child: Text("Cancel")),
-            ],
-          );
-        }
+            CupertinoDialogAction(
+              child: const Text("Cancel"),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
     );
   }
 
@@ -316,94 +306,41 @@ class _ProfileState extends State<Profile> {
     );
   }
 
-  Padding createTopRow() {
-    return Padding(
-      padding: EdgeInsets.only(top: 15.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 47,
-            child: Padding(
-              padding: const EdgeInsets.all(6.0),
-              child: Container(
-                height: MediaQuery.of(context).size.width * 0.25,
-                width: MediaQuery.of(context).size.width * 0.25,
-                child: img,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 53,
-            child: Padding(
-              padding: EdgeInsets.only(top: 20.0, right: 10.0),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(right: 20.0),
-                        child: Column(
-                          children: [
-                            Text(
-                              grade,
-                              style: GoogleFonts.notoSans(
-                                textStyle:TextStyle(
-                                  fontSize: 20,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              "Grade",
-                              style: GoogleFonts.notoSans(
-                                textStyle:TextStyle(
-                                  fontSize: 25,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        children: [
-                          Text(
-                            userScore.toString(),
-                            style: GoogleFonts.notoSans(
-                              textStyle:TextStyle(
-                                fontSize: 20,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            "Points",
-                            style: GoogleFonts.notoSans(
-                              textStyle:TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Column createMiddleColumn() {
     return Column(
       children: [
         Row(
           children: [
-            Expanded(flex: 15, child: Container()),
+            Expanded(flex: 20, child: Container()),
+            Expanded(
+              flex: 85,
+              child: ListTile(
+                title: const Text(
+                  "Points",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color.fromRGBO(163, 163, 163, 1),
+                  ),
+                ),
+                subtitle: Text(
+                  userScore.toString(),
+                  style: TextStyle(
+                    fontSize: 21,
+                    color: Colors.black,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.score_outlined),
+                  onPressed: (){},
+                  color: Color.fromRGBO(224, 224, 221, 1),
+                ),
+              ),
+            )
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(flex: 20, child: Container()),
             Expanded(
               flex: 85,
               child: ListTile(
@@ -424,7 +361,7 @@ class _ProfileState extends State<Profile> {
                 leading: IconButton(
                   icon: const Icon(Icons.volunteer_activism),
                   onPressed: (){},
-                  color: Color.fromRGBO(224, 224, 221, 1),
+                  color: Color.fromRGBO(224, 224, 235, 1),
                 ),
               ),
             )
@@ -432,7 +369,7 @@ class _ProfileState extends State<Profile> {
         ),
         Row(
           children: [
-            Expanded(flex: 15, child: Container()),
+            Expanded(flex: 20, child: Container()),
             Expanded(
               flex: 85,
               child: ListTile(
@@ -461,7 +398,7 @@ class _ProfileState extends State<Profile> {
         ),
         Row(
           children: [
-            Expanded(flex: 15, child: Container()),
+            Expanded(flex: 20, child: Container()),
             Expanded(
               flex: 85,
               child: ListTile(
@@ -490,7 +427,7 @@ class _ProfileState extends State<Profile> {
         ),
         Row(
           children: [
-            Expanded(flex: 15, child: Container()),
+            Expanded(flex: 20, child: Container()),
             Expanded(
               flex: 85,
               child: ListTile(
@@ -519,7 +456,7 @@ class _ProfileState extends State<Profile> {
         ),
         Row(
           children: [
-            Expanded(flex: 15, child: Container()),
+            Expanded(flex: 20, child: Container()),
             Expanded(
               flex: 85,
               child: ListTile(
@@ -559,75 +496,170 @@ class _ProfileState extends State<Profile> {
     }
 
     return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: true,
-          elevation: 6,
-          leading: Builder(builder: (context) =>
-              IconButton(
-                icon: Icon(Icons.settings),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-                color: Colors.black,
-              ),
-          ),
-          backgroundColor: Color.fromRGBO(82, 121, 111, 1),
-          title: Text(
-            name,
-            style: GoogleFonts.workSans(
+      appBar: AppBar(
+        title: Padding(
+          padding: const EdgeInsets.only(left: 25.0),
+          child: Text(
+              "Profile Page",
+            style: GoogleFonts.poppins(
               textStyle: TextStyle(
-                fontSize: 33,
                 color: Colors.black,
-              ),
+                fontSize: 32,
+              )
             ),
-            //leading: Icon(Icons.settings),
           ),
         ),
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
         body: SingleChildScrollView(
           child: Column(
               children: [
-                createTopRow(),
+                Padding(
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: Row(
+                    children: [
+                      // Expanded(
+                      //   flex: 10,
+                      //   child: Container(),
+                      // ),
+                      Expanded(
+                        flex: 50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(6.0),
+                          child: Container(
+                            height: MediaQuery.of(context).size.width * 0.25,
+                            width: MediaQuery.of(context).size.width * 0.25,
+                            child: img,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 50,
+                        child: Column(
+                          children: [
+                            Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                name,
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                    fontSize: 29,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                "Grade: " + grade,
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                    fontSize: 24,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 createMiddleColumn(),
               ]
           ),
         ),
+      floatingActionButton: SpeedDial(
+        spaceBetweenChildren: 10.0,
+        icon: Icons.settings,
+        backgroundColor: Color.fromRGBO(82, 121, 111, 1),
+        closeManually: false,
+        children: [
+          SpeedDialChild(
+            child: Icon(Icons.logout),
+            onTap: () async {
+              await FirebaseAuth.instance.signOut().then((value) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => Login(),
+                  ),
+                );
+              });
+            },
+            label: 'Logout',
+            labelBackgroundColor: Colors.white,
+            labelShadow: null,
+          ),
+          SpeedDialChild(
+            child: Icon(Icons.person),
+            label: 'Upload Profile Picture',
+            onTap: () async {
+              await uploadProfilePic();
+            }
+          ),
+          SpeedDialChild(
+              child: Icon(Icons.question_mark),
+              label: 'Help',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SupportPage(),
+                ),
+              );
+            }
+          ),
+          SpeedDialChild(
+              child: Icon(Icons.restore_from_trash_outlined),
+              label: 'Delete Account',
+            onTap: () {
+              showDeleteAccountPopUp();
+            }
+          ),
+        ],
+      ),
       drawer: drawerCode()
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold (
-      bottomNavigationBar: NavigationBar(
-        height: 65,
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        onDestinationSelected: (int index) {
-          setState(() {
-            currentPageIndex = index;
-          });
-        },
-        selectedIndex: currentPageIndex,
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.question_mark),
-              label: 'Questions'
-          ),
-          NavigationDestination(
-              icon: Icon(Icons.account_circle_outlined),
-              label: 'Profile'
-          ),
-          NavigationDestination(
-              icon: Icon(Icons.history),
-              label: 'History'
-          ),
-        ],
+    return Material(
+      child: Scaffold (
+        bottomNavigationBar: NavigationBar(
+          height: 65,
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+          onDestinationSelected: (int index) {
+            setState(() {
+              currentPageIndex = index;
+            });
+          },
+          selectedIndex: currentPageIndex,
+          destinations: const [
+            NavigationDestination(
+                icon: Icon(Icons.question_mark),
+                label: 'Questions'
+            ),
+            NavigationDestination(
+                icon: Icon(Icons.account_circle_outlined),
+                label: 'Profile'
+            ),
+            NavigationDestination(
+                icon: Icon(Icons.history),
+                label: 'History'
+            ),
+          ],
+        ),
+        body: <Widget> [
+          Questions(),
+          // Settings(),
+          profileUI(),
+          History(),
+        ] [currentPageIndex],
       ),
-      body: <Widget> [
-        Questions(),
-        // Settings(),
-        profileUI(),
-        History(),
-      ] [currentPageIndex],
     );
   }
 }

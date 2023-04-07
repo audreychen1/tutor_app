@@ -26,6 +26,11 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
   var questionViews = new Map();
   var questionNumReplies = new Map();
   int? segmentValue = 0;
+  bool onQuestions = true;
+  bool showSearchBar = false;
+  var scrollController = new ScrollController();
+  TextEditingController searchController = TextEditingController();
+  String filter = "";
 
   _HistoryState() {
     getComments();
@@ -33,6 +38,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
   }
 
   Future<void> getQuestions() async {
+    questions.clear();
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("questions asked").once().
     then((value) {
       var info = value.snapshot.value as Map;
@@ -52,7 +58,11 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
       if (mounted) {
         setState(() {
           Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
-          questions.add(q);
+          if (info["title"].toString().contains(filter)) {
+            setState(() {
+              questions.add(q);
+            });
+          }
           if (!questionProfilePics.containsKey(info["author"])) {
             getProfilePics(questionProfilePics, info["author"]);
           }
@@ -109,7 +119,11 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
       if (mounted) {
         setState(() {
           Question q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
-          answeredQuestions.add(q);
+          if (info["title"].toString().contains(filter)) {
+            setState(() {
+              answeredQuestions.add(q);
+            });
+          }
           if (!answerProfilePics.containsKey(info["author"])) {
             getProfilePics(answerProfilePics, info["author"]);
           }
@@ -131,6 +145,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
   }
 
   Future<void> getComments() async {
+    answeredQuestions.clear();
     await FirebaseDatabase.instance.ref().child("Records").child(getUID()).child("answers").once().
     then((value) {
       var info = value.snapshot.value as Map;
@@ -163,115 +178,419 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
 
   @override
   Widget build(BuildContext context) {
-    late TabController _tabController = new TabController(length: 2, vsync: this);
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromRGBO(82, 121, 111, 1),
-        elevation: 5,
-        automaticallyImplyLeading: false,
-        title: Center(
-          child: Container(
-            child: Text(
-              "History",
-              style: GoogleFonts.oswald(
-                textStyle: TextStyle(
+    return Material(
+      child: CupertinoPageScaffold(
+        navigationBar: CupertinoNavigationBar(
+          middle: Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 10.0),
+              child: Text(
+                "History",
+                style: GoogleFonts.poppins(
                   fontSize: 32,
-                  color: Colors.black,
                 ),
               ),
             ),
           ),
-        ),
-        bottom: TabBar(
-          isScrollable: true,
-          controller: _tabController,
-          indicatorColor: Colors.black,
-          indicatorWeight: 3.0,
-          tabs: <Widget> [
-            Tab(
-              child: Text(
-                "Questions",
-                style: GoogleFonts.notoSans(
-                  textStyle: TextStyle(
-                    fontSize: 20,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
+          trailing: Material(
+            child: IconButton(
+              icon: Icon(Icons.search),
+              onPressed: (){
+                setState(() {
+                  showSearchBar = !showSearchBar;
+                });
+              },
             ),
-            Tab(
-              child: Text(
-                "Answers",
-                style: GoogleFonts.notoSans(
-                  textStyle: TextStyle(
-                    fontSize: 20,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            )
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          if (questions.length == 0)
-            Center(
-                child: Text(
-                  "No Questions Asked",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontFamily: "Times New Roman",
-                  ),
-                ),
-            ),
-          if (questions.length != 0)
-          ListView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(8),
-              itemCount: questions.length,
-              itemBuilder: (BuildContext context, int index) {
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
-                      child: _buildQuestions(index, questions),
-                    ),
-                    //Divider(),
-                  ],
-                );
-              }
           ),
-          if (answeredQuestions.length == 0)
-            Center(
-              child: Text(
-                "No Questions Answered",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontFamily: "Times New Roman",
+          border: null,
+          automaticallyImplyLeading: false,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (showSearchBar)
+                Expanded(
+                  flex: 10,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 18.0, right: 18.0, top: 15.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                          color: Color.fromRGBO(225, 225, 225, 0.5),
+                        border: Border.all(
+                          color: Color.fromRGBO(120, 119, 128, 0.75),
+                        )
+                      ),
+                      child: CupertinoSearchTextField(
+                        controller: searchController,
+                        placeholder: "Search",
+                        suffixIcon: Icon(Icons.clear),
+                        onSuffixTap: () {
+                          searchController.clear();
+                          filter = "";
+                          if (onQuestions) {
+                            getQuestions();
+                          }
+                          if (!onQuestions) {
+                            getComments();
+                          }
+                        },
+                        onSubmitted: (value) {
+                          filter = value.toString();
+                          if (onQuestions) {
+                            getQuestions();
+                          }
+                          if (!onQuestions) {
+                            getComments();
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              Expanded(
+                flex: 10,
+                child: Row(
+                  children: [
+                    if (onQuestions)
+                      Expanded(
+                        flex: 50,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 18.0, right: 6.0, top: 5.0),
+                          child: GestureDetector(
+                            onTap: (){
+                              setState(() {
+                                onQuestions = true;
+                              });
+                            },
+                            child: Container(
+                              height: 55,
+                              width: 105,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromRGBO(0, 0, 0, 1),
+                                  width: 2.0,
+                                ),
+                                color: Color.fromRGBO(110, 156, 144, 1),
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: ListTile(
+                                onTap: (){
+                                  setState(() {
+                                    onQuestions = true;
+                                  });
+                                },
+                                leading: Icon(Icons.question_mark),
+                                title: Text(
+                                  "Questions",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!onQuestions)
+                      Expanded(
+                        flex: 50,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 18.0, right: 6.0, top: 5.0),
+                          child: GestureDetector(
+                            onTap: (){
+                              setState(() {
+                                onQuestions = true;
+                              });
+                            },
+                            child: Container(
+                              height: 55,
+                              width: 105,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromRGBO(110, 156, 144, 1),
+                                ),
+                                color: Color.fromRGBO(110, 156, 144, 1),
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: ListTile(
+                                onTap: (){
+                                  setState(() {
+                                    onQuestions = true;
+                                  });
+                                },
+                                leading: Icon(Icons.question_mark),
+                                title: Text(
+                                    "Questions",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (onQuestions)
+                      Expanded(
+                        flex: 50,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6.0, right: 18.0, top: 5.0),
+                          child: GestureDetector(
+                            onTap: (){
+                              setState(() {
+                                onQuestions = false;
+                              });
+                            },
+                            child: Container(
+                              height: 55,
+                              width: 105,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromRGBO(110, 156, 144, 1),
+                                ),
+                                color: Color.fromRGBO(110, 156, 144, 1),
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: ListTile(
+                                onTap: (){
+                                  setState(() {
+                                    onQuestions = false;
+                                  });
+                                },
+                                leading: Icon(Icons.reply),
+                                title: Text(
+                                  "Answers",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!onQuestions)
+                      Expanded(
+                        flex: 50,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6.0, right: 18.0, top: 5.0),
+                          child: GestureDetector(
+                            onTap: (){
+                              setState(() {
+                                onQuestions = false;
+                              });
+                            },
+                            child: Container(
+                              height: 55,
+                              width: 105,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromRGBO(0, 0, 0, 1),
+                                  width: 2.0,
+                                ),
+                                color: Color.fromRGBO(110, 156, 144, 1),
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: ListTile(
+                                onTap: (){
+                                  setState(() {
+                                    onQuestions = false;
+                                  });
+                                },
+                                leading: Icon(Icons.reply),
+                                title: Text(
+                                  "Answers",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-          if (answeredQuestions.length != 0)
-          ListView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(8),
-              itemCount: answeredQuestions.length,
-              itemBuilder: (BuildContext context, int index) {
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
-                      child: _buildAnsweredQuestions(index, answeredQuestions),
+              if (onQuestions)
+                if (questions.isEmpty)
+                  Expanded(
+                    flex: 80,
+                    child: Center(
+                      child: Text(
+                        "No Questions Asked",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontFamily: "Times New Roman",
+                        ),
+                      ),
                     ),
-                  ],
-                );
-              }
-              ),
-        ],
+                  ),
+              if (onQuestions)
+                if (questions.isNotEmpty)
+                  Expanded(
+                    flex: 80,
+                    child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: questions.length,
+                        controller: scrollController,
+                        itemBuilder: (BuildContext context, int index) {
+                          return Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+                                child: _buildQuestions(index, questions),
+                              ),
+                            ],
+                          );
+                        }
+                    ),
+                  ),
+              if (!onQuestions)
+                if (answeredQuestions.isEmpty)
+                  Expanded(
+                    flex: 80,
+                    child: Center(
+                      child: Text(
+                        "No Questions Answered",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontFamily: "Times New Roman",
+                        ),
+                      ),
+                    ),
+                  ),
+              if (!onQuestions)
+                if (answeredQuestions.isNotEmpty)
+                  Expanded(
+                    flex: 80,
+                    child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: answeredQuestions.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          return Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+                                child: _buildAnsweredQuestions(index, answeredQuestions),
+                              ),
+                            ],
+                          );
+                        }
+                    ),
+                  ),
+            ],
+          ),
+        ),
       ),
-     );
+    );
+
+    // late TabController _tabController = new TabController(length: 2, vsync: this);
+    // return Scaffold(
+    //   appBar: AppBar(
+    //     backgroundColor: Color.fromRGBO(255, 255, 255, 0.5),
+    //     //backgroundColor: Color.fromRGBO(82, 121, 111, 1),
+    //     elevation: 0,
+    //     automaticallyImplyLeading: false,
+    //     title: Center(
+    //       child: Container(
+    //         child: Text(
+    //           "History",
+    //           style: GoogleFonts.poppins(
+    //             textStyle: TextStyle(
+    //               fontSize: 32,
+    //               color: Colors.black,
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //     ),
+    //     bottom: TabBar(
+    //       isScrollable: true,
+    //       controller: _tabController,
+    //       indicatorColor: Colors.black,
+    //       indicatorWeight: 3.0,
+    //       tabs: <Widget> [
+    //         Tab(
+    //           child: Text(
+    //             "Questions",
+    //             style: GoogleFonts.notoSans(
+    //               textStyle: TextStyle(
+    //                 fontSize: 20,
+    //                 color: Colors.black,
+    //               ),
+    //             ),
+    //           ),
+    //         ),
+    //         Tab(
+    //           child: Text(
+    //             "Answers",
+    //             style: GoogleFonts.notoSans(
+    //               textStyle: TextStyle(
+    //                 fontSize: 20,
+    //                 color: Colors.black,
+    //               ),
+    //             ),
+    //           ),
+    //         )
+    //       ],
+    //     ),
+    //   ),
+    //   body: TabBarView(
+    //     controller: _tabController,
+    //     children: [
+    //       if (questions.length == 0)
+    //         Center(
+    //             child: Text(
+    //               "No Questions Asked",
+    //               style: TextStyle(
+    //                 fontSize: 20,
+    //                 fontFamily: "Times New Roman",
+    //               ),
+    //             ),
+    //         ),
+    //       if (questions.length != 0)
+    //       ListView.builder(
+    //           shrinkWrap: true,
+    //           padding: const EdgeInsets.all(8),
+    //           itemCount: questions.length,
+    //           itemBuilder: (BuildContext context, int index) {
+    //             return Column(
+    //               children: [
+    //                 Padding(
+    //                   padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+    //                   child: _buildQuestions(index, questions),
+    //                 ),
+    //                 //Divider(),
+    //               ],
+    //             );
+    //           }
+    //       ),
+    //       if (answeredQuestions.length == 0)
+    //         Center(
+    //           child: Text(
+    //             "No Questions Answered",
+    //             style: TextStyle(
+    //               fontSize: 20,
+    //               fontFamily: "Times New Roman",
+    //             ),
+    //           ),
+    //         ),
+    //       if (answeredQuestions.length != 0)
+    //       ListView.builder(
+    //           shrinkWrap: true,
+    //           padding: const EdgeInsets.all(8),
+    //           itemCount: answeredQuestions.length,
+    //           itemBuilder: (BuildContext context, int index) {
+    //             return Column(
+    //               children: [
+    //                 Padding(
+    //                   padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+    //                   child: _buildAnsweredQuestions(index, answeredQuestions),
+    //                 ),
+    //               ],
+    //             );
+    //           }
+    //           ),
+    //     ],
+    //   ),
+    //  );
   }
 
   Widget _buildQuestions(int index, List<Question> list) {
@@ -316,7 +635,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
-                  padding: const EdgeInsets.all(5.0),
+                  padding: const EdgeInsets.only(top: 5.0, bottom: 5.0),
                   child: Text(
                     questions[index].content,
                     maxLines: 2,
@@ -530,7 +849,7 @@ class _HistoryState extends State<History> with TickerProviderStateMixin{
               Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
-                  padding: const EdgeInsets.all(5.0),
+                  padding: const EdgeInsets.only(top: 5.0, bottom: 5.0),
                   child: Text(
                     answeredQuestions[index].content,
                     maxLines: 2,

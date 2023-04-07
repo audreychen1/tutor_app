@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_profile_picture/flutter_profile_picture.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,9 +55,11 @@ class _QuestionsState extends State<Questions> {
   var questionUUID = new Uuid();
   List<String> comments = [];
   var questionViews = new Map();
+  var questionNumReplies = new Map();
   var scrollController = new ScrollController();
   var lastloadedquestiontime = 0;
   var bottomflag;
+  bool showSearch = false;
 
   @override
   void initState() {
@@ -226,6 +229,16 @@ class _QuestionsState extends State<Questions> {
     then((value) {
       var info = value.snapshot.value as Map;
       q = Question(info["time"].toString(), info["title"], info["content"], info["author"], info["uuid"], info["subject"]);
+      if (info.containsKey("views")) {
+        setState(() {
+          questionViews[info["author"] + "+" + info["uuid"]] = info["views"];
+        });
+      }
+      if (info.containsKey("comments")) {
+        setState(() {
+          questionNumReplies[info["author"] + "+" + info["uuid"]] = info["comments"].length;
+        });
+      }
     });
     return q;
   }
@@ -283,9 +296,12 @@ class _QuestionsState extends State<Questions> {
   ///Makes a request to the server with the [questionTitle] and [questionDescription] of a recently made post.
   Future<String> getQuestionSubject(String questionTitle, String questionDescription) async {
     String combined = questionTitle + " " + questionDescription;
+    print(combined);
     String url = "https://Tutor-AI-Server.bigphan.repl.co/subject/" + combined;
     final uri = Uri.parse(url);
+    print("sending uri");
     final response = await http.get(uri);
+    print("received");
     var responseData = json.decode(response.body);
     print(responseData);
     return responseData;
@@ -430,7 +446,6 @@ class _QuestionsState extends State<Questions> {
     }
   }
 
-  //doesnt work
   Future<void> viewQuestion(String questionUUID) async {
     int views = 0;
     await FirebaseDatabase.instance.ref().child("Questions").child(questionUUID).once().
@@ -583,45 +598,99 @@ class _QuestionsState extends State<Questions> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromRGBO(255, 255, 255, 1),
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Container(
+      appBar: CupertinoNavigationBar(
+        border: null,
+        middle: Container(
           child: Align(
-            alignment: Alignment.center,
-            child: Text(
-              "Questions",
-              style: GoogleFonts.oswald(
-                textStyle: TextStyle(
-                  color: Colors.black,
-                  fontSize: 32,
-                ),
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 11.0),
+              child: Text(
+                "Questions",
+                style: GoogleFonts.poppins(
+                  fontSize: 29,
+                )
               ),
             ),
           ),
         ),
         automaticallyImplyLeading: false,
-        elevation: 6,
-        backgroundColor: Color.fromRGBO(82, 121, 111, 1),
+        trailing: Material(
+          child: IconButton(
+            icon: Icon(Icons.search),
+            onPressed: (){
+              setState(() {
+                showSearch = !showSearch;
+              });
+            },
+          ),
+        ),
+        //backgroundColor: Color.fromRGBO(82, 121, 111, 1),
       ),
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (showSearch)
+            Container(
+              color: Color.fromRGBO(225, 225, 225, 0.1),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 5.0, left: 15.0, right: 15.0, bottom: 10.0),
+                child: CupertinoSearchTextField(
+                  controller: searchController,
+                  decoration: BoxDecoration(
+                    color: Color.fromRGBO(225, 225, 225, 0.5),
+                    border: Border.all(
+                      color: Color.fromRGBO(120, 119, 128, 0.75),
+                    ),
+                    borderRadius: BorderRadius.circular(10.0)
+                  ),
+                  suffixIcon: Icon(Icons.clear),
+                  onSuffixTap: () {
+                    searchController.clear();
+                    filter = "";
+                    getQuestions();
+                  },
+                  onSubmitted: (value) {
+                    filter = value.toString();
+                    getQuestions();
+                  },
+                  placeholder: "Search",
+                  placeholderStyle: GoogleFonts.poppins(
+                    color: Color.fromRGBO(120, 119, 128, 0.75),
+                    textStyle: TextStyle(
+                      fontStyle: FontStyle.italic
+                    )
+                  )
+                ),
+              ),
+            ),
           Padding(
-            padding: EdgeInsets.all(11.0),
-            child: OutlineSearchBar(
-              textEditingController: searchController,
-              hintText: "Search",
-              onClearButtonPressed: (value) {
-                searchController.clear();
-                filter = "";
-                getQuestions();
+            padding: const EdgeInsets.only(left: 18.0, right: 18.0, top: 5.0),
+            child: GestureDetector(
+              onTap: (){
+                showQuestionDialog(context);
               },
-              onSearchButtonPressed: (value) {
-                filter = value.toString();
-                getQuestions();
-              },
-              borderColor: Color.fromRGBO(120, 119, 128, 1),
-              searchButtonIconColor: Color.fromRGBO(120, 119, 128, 1),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10.0),
+                  gradient: LinearGradient(
+                    colors: [
+                      Color.fromRGBO(110, 156, 144, 1),
+                      Color.fromRGBO(129, 184, 169, 1)
+                    ]
+                  ),
+                  //color: Color.fromRGBO(82, 121, 111, 1),
+                  border: Border.all(
+                    color: Color.fromRGBO(110, 156, 144, 1),
+                  )
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.add),
+                  title: Text("Create New Question"),
+                ),
+              ),
             ),
           ),
           if (questions.isEmpty)
@@ -656,8 +725,10 @@ class _QuestionsState extends State<Questions> {
                   itemBuilder: (BuildContext context, int index) {
                     return Column(
                       children: [
-                        _buildRow(index),
-                        Divider(),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+                          child: _buildRow(index),
+                        ),
                       ],
                     );
                   }
@@ -665,17 +736,104 @@ class _QuestionsState extends State<Questions> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showQuestionDialog(context);
-        },
-        child: Icon(
-          Icons.add,
-        ),
-        tooltip: "New Question",
-        backgroundColor: Color.fromRGBO(132, 169, 140, 1),
-      ),
-      );
+    );
+
+    // return Scaffold(
+    //   resizeToAvoidBottomInset: false,
+    //   appBar: AppBar(
+    //     title: Container(
+    //       child: Align(
+    //         alignment: Alignment.center,
+    //         child: Text(
+    //           "Questions",
+    //           style: GoogleFonts.oswald(
+    //             textStyle: TextStyle(
+    //               color: Colors.black,
+    //               fontSize: 32,
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //     ),
+    //     automaticallyImplyLeading: false,
+    //     elevation: 6,
+    //     backgroundColor: Color.fromRGBO(82, 121, 111, 1),
+    //   ),
+    //   body: Column(
+    //     mainAxisSize: MainAxisSize.min,
+    //     children: [
+    //       Padding(
+    //         padding: EdgeInsets.only(top: 12.0, left: 15.0, right: 15.0),
+    //         child: OutlineSearchBar(
+    //           textEditingController: searchController,
+    //           hintText: "Search",
+    //           onClearButtonPressed: (value) {
+    //             searchController.clear();
+    //             filter = "";
+    //             getQuestions();
+    //           },
+    //           onSearchButtonPressed: (value) {
+    //             filter = value.toString();
+    //             getQuestions();
+    //           },
+    //           borderColor: Color.fromRGBO(120, 119, 128, 1),
+    //           searchButtonIconColor: Color.fromRGBO(120, 119, 128, 1),
+    //         ),
+    //       ),
+    //       if (questions.isEmpty)
+    //         Center(
+    //           child: Column(
+    //             children: [
+    //               Center(
+    //                 child: Lottie.asset("assets/animations/hUiEYf0LGw.json"),
+    //               ),
+    //               Container(
+    //                 padding: EdgeInsets.all(5.0),
+    //                 child: Text(
+    //                   "No Questions",
+    //                   style: GoogleFonts.notoSans(
+    //                     textStyle: TextStyle(
+    //                       fontSize: 25,
+    //                     ),
+    //                   ),
+    //                 ),
+    //               ),
+    //             ],
+    //           ),
+    //         ),
+    //       if (questions.isNotEmpty)
+    //         Expanded(
+    //           flex: 90,
+    //           child: ListView.builder(
+    //               shrinkWrap: true,
+    //               controller: scrollController,
+    //               padding: const EdgeInsets.all(8),
+    //               itemCount: questions.length,
+    //               itemBuilder: (BuildContext context, int index) {
+    //                 return Column(
+    //                   children: [
+    //                     Padding(
+    //                       padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 6.9),
+    //                       child: _buildRow(index),
+    //                     ),
+    //                   ],
+    //                 );
+    //               }
+    //           ),
+    //         ),
+    //     ],
+    //   ),
+    //   floatingActionButton: FloatingActionButton(
+    //     onPressed: () {
+    //       showQuestionDialog(context);
+    //     },
+    //     child: Icon(
+    //       Icons.add,
+    //     ),
+    //     tooltip: "New Question",
+    //     backgroundColor: Color.fromRGBO(132, 169, 140, 1),
+    //   ),
+    //   );
   }
 
   Widget _buildRow(int index) {
@@ -688,38 +846,176 @@ class _QuestionsState extends State<Questions> {
 
     //if (interestedSubjects.contains(questionSubject.toString().toLowerCase())) {
     return Container(
-      height: 132,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: Color.fromRGBO(225, 225, 225, 1),
+        ),
+        borderRadius: BorderRadius.circular(10.0),
+        boxShadow: [
+          BoxShadow(
+            color: Color.fromRGBO(225, 225, 225, 1),
+            blurRadius: 12.0,
+          ),
+        ],
+      ),
+      height: 165,
       child: Center(
         child: ListTile(
-          title: Text(
-            questions[index].title,
-            style: GoogleFonts.notoSans(
-              textStyle: TextStyle(
-                fontSize: 17,
+          title: Padding(
+            padding: const EdgeInsets.only(top: 20.0),
+            child: Text(
+              questions[index].title,
+              style: GoogleFonts.notoSans(
+                textStyle: TextStyle(
+                  fontSize: 17,
+                ),
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
           subtitle: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  questions[index].content,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.notoSans(
-                    textStyle: TextStyle(
-                      fontSize: 12.5,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 5.0, bottom: 5.0),
+                  child: Text(
+                    questions[index].content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.notoSans(
+                      textStyle: TextStyle(
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                 ),
               ),
               Row(
                 children: [
-                  Text(questions[index].subject),
+                  if (questions[index].subject.compareTo("Math") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(96, 189, 219, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("Science") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(117, 209, 152, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("Language") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(182, 144, 212, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("History") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(227, 127, 127, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  if (questions[index].subject.compareTo("English") == 0)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromRGBO(255, 255, 145, 1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                        child: Text(
+                            questions[index].subject
+                        ),
+                      ),
+                    ),
+                  Container(
+                    width: 10,
+                  ),
+                  questionViews.containsKey(questions[index].author + "+" + questions[index].uuid) ?
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(207, 207, 207, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          questionViews[questions[index].author + "+" + questions[index].uuid].toString() + " views"
+                      ),
+                    ),
+                  ) :
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(207, 207, 207, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          "0 views"
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 10,
+                  ),
+                  questionNumReplies.containsKey(questions[index].author + "+" + questions[index].uuid) ?
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(167, 190, 169, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          questionNumReplies[questions[index].author + "+" + questions[index].uuid].toString() + " replies"
+                      ),
+                    ),
+                  ) : Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromRGBO(167, 190, 169, 1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 10.0, right: 10.0, top: 5.0, bottom: 5.0),
+                      child: Text(
+                          "0 replies"
+                      ),
+                    ),
+                  ),
                 ],
               ),
               Row(

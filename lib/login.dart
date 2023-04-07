@@ -15,6 +15,8 @@ class Login extends StatefulWidget {
 class _LoginState extends State<Login> {
   TextEditingController emailController = new TextEditingController();
   TextEditingController passwordController = new TextEditingController();
+  bool canLogin = true;
+  bool validLogin = true;
 
   Future<void> login() async {
     await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -26,9 +28,15 @@ class _LoginState extends State<Login> {
         context,
         MaterialPageRoute(builder: (context) => Profile()),
       );
+      setState(() {
+        validLogin = true;
+      });
       //transition to dashboard
     }).catchError((error) {
       print("Could not sign the user in: " + error.toString());
+      setState(() {
+        validLogin = false;
+      });
     });
   }
 
@@ -131,7 +139,16 @@ class _LoginState extends State<Login> {
                   padding: EdgeInsets.only(top: 20.0, left: 15.0, right: 15.0),
                   child: GestureDetector(
                     onTap: () {
-                      login();
+                      if (passwordController.text.isEmpty && emailController.text.isEmpty) {
+                        setState(() {
+                          canLogin = false;
+                        });
+                      } else {
+                        setState(() {
+                          canLogin = true;
+                        });
+                        login();
+                      }
                     },
                     child: Container(
                       height: 50,
@@ -150,6 +167,52 @@ class _LoginState extends State<Login> {
                     ),
                   ),
                 ),
+                if (!canLogin)
+                  Row(
+                    children: [
+                      Expanded(flex: 35,child: Container(),),
+                      Expanded(
+                        flex: 12,
+                        child: IconButton(
+                            onPressed: (){},
+                            icon: Icon(Icons.error_outline_rounded),
+                          color: Colors.red,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 80,
+                        child:  Text(
+                            "Please fill out both fields",
+                          style: GoogleFonts.notoSans(
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ]
+                  ),
+                if (!validLogin)
+                  Row(
+                      children: [
+                        Expanded(flex: 5,child: Container(),),
+                        Expanded(
+                          flex: 10,
+                          child: IconButton(
+                            onPressed: (){},
+                            icon: Icon(Icons.error_outline_rounded),
+                            color: Colors.red,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 90,
+                          child:  Text(
+                            "The email or password you entered is incorrect",
+                            style: GoogleFonts.notoSans(
+                              color: Colors.red,
+                            ),
+                          ),
+                        ),
+                      ]
+                  ),
                 Padding(
                   padding: EdgeInsets.only(top: 20.0, left: 10.0, right: 10.0),
                   child: Text(
